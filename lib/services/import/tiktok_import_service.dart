@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
@@ -95,6 +94,10 @@ class TiktokImportService {
         }
       }
     }
+
+    // A single run-on block (a whole transcript that landed as one step) gets
+    // carved into individual steps here regardless of which source produced it.
+    steps = _resegmentLongSteps(steps);
 
     if (steps.isEmpty) {
       steps = const ['Watch the video for the full instructions.'];
@@ -397,23 +400,186 @@ class TiktokImportService {
     return re.allMatches(text).map((m) => m.group(0)!).toList();
   }
 
-  /// Turns a transcript into readable steps. Splits on sentence punctuation
-  /// when present; otherwise (bare ASR) chunks into ~18-word segments so the
-  /// result is still scannable.
-  List<String> _stepsFromProse(String text) {
-    List<String> parts;
-    if (RegExp(r'[.!?]').hasMatch(text)) {
-      parts = text.split(RegExp(r'(?<=[.!?])\s+'));
-    } else {
-      final words = text.split(' ');
-      parts = <String>[];
-      for (var i = 0; i < words.length; i += 18) {
-        parts.add(words.sublist(i, math.min(i + 18, words.length)).join(' '));
+  /// Turns a transcript (or any run-on block of prose) into readable steps.
+  ///
+  /// TikTok captions are usually one long, barely-punctuated stream, so
+  /// splitting on sentence breaks alone leaves the whole recipe as a single
+  /// step. Instead we drop the intro hook and the outro call-to-action
+  /// ("shout out to…", "follow for more"), then carve the remaining prose into
+  /// steps at natural action boundaries — a new cooking verb ("add", "mix",
+  /// "get"), a switch to a new vessel ("to another bowl") or a new component
+  /// ("for the sauce").
+  List<String> _stepsFromProse(String text) => _segmentProse(text);
+
+  List<String> _segmentProse(String text) {
+    final trimmed = _stripOutro(text.replaceAll(RegExp(r'\s+'), ' ').trim());
+    if (trimmed.isEmpty) return const [];
+
+    final segments = <String>[];
+    for (final sentence in _splitSentences(trimmed)) {
+      for (final clause in _splitClauses(sentence)) {
+        final cleaned = _trimConnectives(clause);
+        if (cleaned.isNotEmpty) segments.add(cleaned);
       }
     }
-    // Keep it to a sane number of steps.
-    return parts.take(40).toList();
+
+    final kept = _dropLeadingAndTrailingChatter(segments);
+    return _mergeShortSegments(kept).take(40).toList();
   }
+
+  /// Splits on sentence punctuation; falls back to the whole block when there
+  /// is none (the common ASR case), leaving the clause splitter to do the work.
+  List<String> _splitSentences(String text) {
+    if (!RegExp(r'[.!?]').hasMatch(text)) return [text];
+    return text
+        .split(RegExp(r'(?<=[.!?])\s+'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
+  /// Carves a single (possibly very long) sentence into step-sized clauses by
+  /// starting a fresh clause whenever a new cooking action begins: a switch of
+  /// vessel/component, a sequencing word ("then", "once") or — once the current
+  /// clause is long enough — a fresh cooking verb that isn't glued to the words
+  /// before it.
+  List<String> _splitClauses(String sentence) {
+    final words = sentence.split(' ').where((w) => w.isNotEmpty).toList();
+    final segments = <String>[];
+    final current = <String>[];
+    // True while we're inside a "once/when/after…" lead-in, whose main verb
+    // belongs to the same step rather than starting a new one.
+    var subordinate = false;
+
+    void flush() {
+      if (current.isNotEmpty) {
+        segments.add(current.join(' '));
+        current.clear();
+      }
+    }
+
+    for (var i = 0; i < words.length; i++) {
+      final token = _wordToken(words[i]);
+      final prev = i == 0 ? '' : _wordToken(words[i - 1]);
+
+      var boundary = false;
+      if (current.isNotEmpty) {
+        if (_isVesselOrComponentCue(words, i) && current.length >= 2) {
+          boundary = true;
+        } else if (current.length >= _minClauseWords &&
+            !_glueWords.contains(prev)) {
+          if (_isStepStartVerb(token)) {
+            // The main verb of a "once…" lead-in stays in that same step.
+            if (subordinate) {
+              subordinate = false;
+            } else {
+              boundary = true;
+            }
+          } else if (_transitionCues.contains(token)) {
+            boundary = true;
+          }
+        }
+      }
+
+      if (boundary) flush();
+      if (current.isEmpty) subordinate = _subordinateStarts.contains(token);
+      current.add(words[i]);
+    }
+    flush();
+    return segments;
+  }
+
+  /// A boundary at word [i] because the cook moves to a new component
+  /// ("for the sauce") or a fresh vessel ("to another bowl").
+  bool _isVesselOrComponentCue(List<String> words, int i) {
+    final w0 = _wordToken(words[i]);
+    final w1 = i + 1 < words.length ? _wordToken(words[i + 1]) : '';
+    final w2 = i + 2 < words.length ? _wordToken(words[i + 2]) : '';
+    if (w0 == 'for' && w1 == 'the' && _components.contains(w2)) return true;
+    if ((w0 == 'to' || w0 == 'in' || w0 == 'into' || w0 == 'onto') &&
+        w1 == 'another' &&
+        _containers.contains(w2)) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _isStepStartVerb(String token) =>
+      _cookingVerbs.contains(token) || token == 'get' || token == 'grab';
+
+  String _wordToken(String w) => w.toLowerCase().replaceAll(RegExp('[^a-z]'), '');
+
+  /// Truncates a trailing call-to-action ("…and shout out to X", "follow for
+  /// more") when there's a real recipe in front of it.
+  String _stripOutro(String text) {
+    final m = _outroChatter.firstMatch(text);
+    if (m == null) return text;
+    final head = text.substring(0, m.start).trim();
+    return head.split(' ').length >= 4 ? head : text;
+  }
+
+  /// Drops the leading intro hook and any trailing chatter the outro trim
+  /// missed, but never touches recipe steps in the middle.
+  List<String> _dropLeadingAndTrailingChatter(List<String> segments) {
+    var start = 0;
+    var end = segments.length;
+    while (start < end && _isChatterSegment(segments[start])) {
+      start++;
+    }
+    while (end > start && _isChatterSegment(segments[end - 1])) {
+      end--;
+    }
+    return segments.sublist(start, end);
+  }
+
+  bool _isChatterSegment(String s) =>
+      _introChatter.hasMatch(s) || _outroChatter.hasMatch(s);
+
+  /// Folds a stray fragment ("mix again") back into the previous step so we
+  /// don't emit one- or two-word "steps".
+  List<String> _mergeShortSegments(List<String> segments) {
+    final out = <String>[];
+    for (final seg in segments) {
+      final count = seg.split(' ').where((w) => w.isNotEmpty).length;
+      if (count < 3 && out.isNotEmpty) {
+        out[out.length - 1] = '${out.last} $seg';
+      } else {
+        out.add(seg);
+      }
+    }
+    return out;
+  }
+
+  /// Strips leading/trailing conjunctions left dangling by a clause split.
+  String _trimConnectives(String s) {
+    var t = s.trim();
+    t = t.replaceFirst(
+        RegExp(r'^(?:and|then|but|or|so)\s+', caseSensitive: false), '');
+    t = t.replaceFirst(
+        RegExp(r'\s+(?:and|then|but|or|so|to|for|with|of|the|a|an)$',
+            caseSensitive: false),
+        '');
+    return t.trim();
+  }
+
+  /// Re-splits any step that is really an unsegmented block of prose (e.g. a
+  /// whole transcript that slipped through as one step), leaving well-formed
+  /// steps untouched.
+  List<String> _resegmentLongSteps(List<String> steps) {
+    if (!steps.any(_looksLikeProse)) return steps;
+    final out = <String>[];
+    for (final s in steps) {
+      if (_looksLikeProse(s)) {
+        out.addAll(_segmentProse(s));
+      } else {
+        out.add(s);
+      }
+    }
+    return _finalizeSteps(out);
+  }
+
+  bool _looksLikeProse(String step) =>
+      step.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length > 28;
 
   // ---- Cleaning & finalising -----------------------------------------------
 
@@ -602,6 +768,59 @@ class TiktokImportService {
     'brush', 'sprinkle', 'drizzle', 'marinate', 'set', 'bring', 'grate',
     'toss', 'coat', 'rinse', 'wash', 'peel', 'crush', 'reduce', 'flip',
   };
+
+  // ---- Prose segmentation --------------------------------------------------
+
+  /// Minimum words a clause must already hold before a fresh cooking verb is
+  /// allowed to start a new step (keeps "add salt and pepper" as one step).
+  static const _minClauseWords = 4;
+
+  /// Sequencing words that mark the start of a new step.
+  static const _transitionCues = {
+    'then', 'next', 'once', 'meanwhile', 'finally',
+  };
+
+  /// Lead-in words whose main verb belongs to the same step ("once it releases,
+  /// break it up" is one step, not two).
+  static const _subordinateStarts = {
+    'once', 'when', 'after', 'while', 'as', 'if', 'until', 'unless',
+  };
+
+  /// Words that shouldn't precede a step break — a verb glued to one of these
+  /// continues the current clause ("and let it chill", "to mix").
+  static const _glueWords = {
+    'and', 'or', 'but', 'so', 'then', 'to', 'of', 'the', 'a', 'an', 'with',
+    'into', 'in', 'on', 'at', 'for', 'it', 'its', 'that', 'this', 'your', 'my',
+    'some', 'until', 'till',
+  };
+
+  /// Recipe components introduced by "for the …".
+  static const _components = {
+    'sauce', 'sauces', 'marinade', 'dressing', 'filling', 'topping', 'garnish',
+    'glaze', 'batter', 'dough', 'crust', 'base', 'seasoning', 'rub', 'cream',
+    'assembly', 'coating', 'crumb', 'crumble', 'frosting', 'icing',
+  };
+
+  /// Vessels introduced by "to/in another …".
+  static const _containers = {
+    'bowl', 'pan', 'pot', 'skillet', 'dish', 'tray', 'plate', 'sheet', 'mixer',
+    'blender', 'processor', 'saucepan', 'jar', 'glass', 'cup', 'wok', 'container',
+  };
+
+  static final _introChatter = RegExp(
+    r"best recipe|recipe of the year|you ?won'?t believe|for the last time"
+    r"|(?:we|i) finally|finally made|wait (?:for it|till|until)"
+    r"|watch (?:me|this)|welcome back|in this (?:video|one)|part \d"
+    r"|new york times recipes|i'?m cooking",
+    caseSensitive: false,
+  );
+  static final _outroChatter = RegExp(
+    r"shout ?out|thanks? (?:for|to) (?:watching|you)|follow (?:for|me)"
+    r"|for more recipes|link in (?:my )?bio|full recipe|like and subscribe"
+    r"|subscribe|comment (?:below|down|if)|save this|don'?t forget to"
+    r"|hit the (?:follow|like)|check (?:out|the) (?:link|description|bio)",
+    caseSensitive: false,
+  );
 }
 
 /// Metadata scraped from a TikTok video page.

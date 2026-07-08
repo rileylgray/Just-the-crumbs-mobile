@@ -7,18 +7,34 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1029709252983:android:4ca79adda3f8d3e597b972",
+        "mobilesdk_app_id": "1:1029709252983:android:2db3d059c171610597b972",
         "android_client_info": {
-          "package_name": "com.justthecrumbs.just_the_crumbs_mobile"
+          "package_name": "com.realgamesrealfun.justthecrumbs"
         }
       },
       "oauth_client": [
         {
-          "client_id": "1029709252983-lk53j1f990v9vb2khc7alr766ioktff9.apps.googleusercontent.com",
+          "client_id": "1029709252983-6qolrrajlieq76p0iej1dl98j8fev2k0.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.justthecrumbs.just_the_crumbs_mobile",
+            "package_name": "com.realgamesrealfun.justthecrumbs",
+            "certificate_hash": "d89da0401711e78e6331a8e1b171e322d8558b80"
+          }
+        },
+        {
+          "client_id": "1029709252983-7up0erm1bnmmrnsvirl9d1nhkinv3kmd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.realgamesrealfun.justthecrumbs",
             "certificate_hash": "c0cbef0ae10465c9ace0db39d06a1b034aa76caa"
+          }
+        },
+        {
+          "client_id": "1029709252983-c7o48pnlpvbdiuib1n95r1cf4q46hgqn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.realgamesrealfun.justthecrumbs",
+            "certificate_hash": "5279e7514e6119d9729fadd6a47db4a76f7d7489"
           }
         },
         {
@@ -39,46 +55,10 @@
               "client_type": 3
             },
             {
-              "client_id": "1029709252983-8chpjjq4ho845ojm2i6kvf0jc4o25ah5.apps.googleusercontent.com",
+              "client_id": "1029709252983-7gm8kvrhl3f9usrq2j8mp3klomgmmj2e.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.justthecrumbs.justTheCrumbsMobile"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:1029709252983:android:2db3d059c171610597b972",
-        "android_client_info": {
-          "package_name": "com.realgamesrealfun.justthecrumbs"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "1029709252983-iaocta8ugt19fbrqlko9a7jftopvlmur.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyAQEyF4c69x9sYZOdeaMW2ucPKzQQNh6ks"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "1029709252983-iaocta8ugt19fbrqlko9a7jftopvlmur.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "1029709252983-8chpjjq4ho845ojm2i6kvf0jc4o25ah5.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.justthecrumbs.justTheCrumbsMobile"
+                "bundle_id": "com.realgamesrealfun.justthecrumbs"
               }
             }
           ]

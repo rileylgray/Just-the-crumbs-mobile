@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../models/category.dart';
@@ -82,12 +83,28 @@ class RecipeView extends StatelessWidget {
         ),
         if (recipe.sourceUrl.isNotEmpty) ...[
           const SizedBox(height: 24),
-          Text(l10n.recipeSource(recipe.sourceUrl),
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          InkWell(
+            onTap: () => _openSource(recipe.sourceUrl),
+            child: Text(
+              l10n.recipeSource(recipe.sourceUrl),
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 13,
+                decoration: TextDecoration.underline,
+                decorationColor: AppColors.primary,
+              ),
+            ),
+          ),
         ],
         ?footer,
       ],
     );
+  }
+
+  Future<void> _openSource(String url) async {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Widget _sectionTitle(String text) => Text(
