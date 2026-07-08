@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/gen/app_localizations.dart';
 import '../models/category.dart';
 import '../models/recipe.dart';
 import '../theme/app_theme.dart';
@@ -20,6 +21,7 @@ class RecipeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final chips = recipe.categoryIds
         .map((id) => categoriesById[id])
         .whereType<Category>()
@@ -38,7 +40,7 @@ class RecipeView extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'by ${recipe.authorName}',
+          l10n.recipeByAuthor(recipe.authorName),
           style: const TextStyle(color: AppColors.textMuted),
         ),
         if (chips.isNotEmpty) ...[
@@ -68,11 +70,11 @@ class RecipeView extends StatelessWidget {
               style: const TextStyle(fontSize: 16, height: 1.4)),
         ],
         const SizedBox(height: 24),
-        _sectionTitle('Ingredients'),
+        _sectionTitle(l10n.ingredientsTitle),
         const SizedBox(height: 8),
         ...recipe.ingredients.map(_ingredientRow),
         const SizedBox(height: 24),
-        _sectionTitle('Steps'),
+        _sectionTitle(l10n.stepsTitle),
         const SizedBox(height: 8),
         ...List.generate(
           recipe.steps.length,
@@ -80,7 +82,7 @@ class RecipeView extends StatelessWidget {
         ),
         if (recipe.sourceUrl.isNotEmpty) ...[
           const SizedBox(height: 24),
-          Text('Source: ${recipe.sourceUrl}',
+          Text(l10n.recipeSource(recipe.sourceUrl),
               style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
         ],
         ?footer,

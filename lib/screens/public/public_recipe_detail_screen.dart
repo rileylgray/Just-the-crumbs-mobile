@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../models/comment.dart';
 import '../../models/recipe.dart';
 import '../../providers/providers.dart';
@@ -19,6 +20,7 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final recipeAsync = ref.watch(recipeProvider(recipeId));
 
     return recipeAsync.when(
@@ -26,13 +28,13 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
         appBar: AppBar(),
-        body: Center(child: Text('Error: $e')),
+        body: Center(child: Text(l10n.errorWithMessage(e.toString()))),
       ),
       data: (recipe) {
         if (recipe == null || !recipe.isPublic) {
           return Scaffold(
             appBar: AppBar(),
-            body: const Center(child: Text('This recipe is not available.')),
+            body: Center(child: Text(l10n.recipeNotAvailable)),
           );
         }
         return Scaffold(
@@ -40,12 +42,12 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
             title: const Text(''),
             actions: [
               IconButton(
-                tooltip: 'Share',
+                tooltip: l10n.tooltipShare,
                 icon: const Icon(Icons.share_outlined),
                 onPressed: () => _share(context, ref, recipe),
               ),
               PopupMenuButton<String>(
-                tooltip: 'More',
+                tooltip: l10n.tooltipMore,
                 onSelected: (value) {
                   switch (value) {
                     case 'report':
@@ -54,21 +56,21 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
                       _blockAndLeave(context, ref, recipe);
                   }
                 },
-                itemBuilder: (context) => const [
+                itemBuilder: (context) => [
                   PopupMenuItem(
                     value: 'report',
                     child: ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.flag_outlined),
-                      title: Text('Report'),
+                      leading: const Icon(Icons.flag_outlined),
+                      title: Text(l10n.menuReport),
                     ),
                   ),
                   PopupMenuItem(
                     value: 'block',
                     child: ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.block),
-                      title: Text('Block / hide'),
+                      leading: const Icon(Icons.block),
+                      title: Text(l10n.menuBlock),
                     ),
                   ),
                 ],
@@ -85,7 +87,7 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
               child: ElevatedButton.icon(
                 onPressed: () => _copy(context, ref, recipe),
                 icon: const Icon(Icons.bookmark_add_outlined),
-                label: const Text('Copy to my recipes'),
+                label: Text(l10n.copyToMyRecipes),
               ),
             ),
           ),
@@ -95,12 +97,14 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _share(BuildContext context, WidgetRef ref, Recipe recipe) async {
+    final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
       final code = await ref.read(recipeRepositoryProvider).ensureShareCode(recipe);
       await ref.read(shareServiceProvider).shareRecipe(recipe, code);
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Could not share: $e')));
+      messenger.showSnackBar(
+          SnackBar(content: Text(l10n.couldNotShare(e.toString()))));
     }
   }
 
@@ -112,6 +116,7 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _copy(BuildContext context, WidgetRef ref, Recipe recipe) async {
+    final l10n = AppLocalizations.of(context);
     final uid = ref.read(currentUidProvider);
     if (uid == null) return;
     final authorName = ref.read(currentAuthorNameProvider);
@@ -121,7 +126,7 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
     if (context.mounted) {
       context.push('/recipes/$id');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Copied to your recipes')),
+        SnackBar(content: Text(l10n.copiedToRecipes)),
       );
     }
   }
@@ -151,6 +156,7 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
   Future<void> _send() async {
     final text = _content.text.trim();
     if (text.isEmpty) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _sending = true);
 
     final isGuest = ref.read(isGuestProvider);
@@ -181,8 +187,8 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
       if (mounted) FocusScope.of(context).unfocus();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Could not post: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.couldNotPost(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -191,6 +197,7 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final commentsAsync = ref.watch(commentsProvider(widget.recipeId));
     final isGuest = ref.watch(isGuestProvider);
     final uid = ref.watch(currentUidProvider);
@@ -201,8 +208,8 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
         const SizedBox(height: 32),
         const Divider(),
         const SizedBox(height: 8),
-        Text('Comments',
-            style: TextStyle(
+        Text(l10n.commentsTitle,
+            style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primaryDark)),
@@ -212,8 +219,8 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
             padding: const EdgeInsets.only(bottom: 8),
             child: TextField(
               controller: _authorName,
-              decoration: const InputDecoration(
-                labelText: 'Your name (optional)',
+              decoration: InputDecoration(
+                labelText: l10n.commentYourNameOptional,
                 isDense: true,
               ),
             ),
@@ -222,8 +229,8 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
           controller: _content,
           minLines: 1,
           maxLines: 4,
-          decoration: const InputDecoration(
-            hintText: 'Add a comment…',
+          decoration: InputDecoration(
+            hintText: l10n.commentAddHint,
             isDense: true,
           ),
         ),
@@ -235,7 +242,7 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
                   dense: true,
-                  title: const Text('Post anonymously'),
+                  title: Text(l10n.commentPostAnonymously),
                   value: _anonymous,
                   onChanged: (v) => setState(() => _anonymous = v ?? false),
                 ),
@@ -244,7 +251,7 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
               const Spacer(),
             TextButton(
               onPressed: _sending ? null : _send,
-              child: Text(_sending ? 'Posting…' : 'Post'),
+              child: Text(_sending ? l10n.commentPosting : l10n.commentPost),
             ),
           ],
         ),
@@ -252,13 +259,13 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
         commentsAsync.when(
           loading: () =>
               const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
-          error: (e, _) => Text('Error: $e'),
+          error: (e, _) => Text(l10n.errorWithMessage(e.toString())),
           data: (comments) {
             if (comments.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text('No comments yet. Be the first!',
-                    style: TextStyle(color: AppColors.textMuted)),
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(l10n.commentsEmpty,
+                    style: const TextStyle(color: AppColors.textMuted)),
               );
             }
             return Column(

@@ -5,8 +5,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
+import 'l10n/gen/app_localizations.dart';
+import 'providers/locale_provider.dart';
 import 'providers/providers.dart';
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
@@ -14,9 +17,17 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Load persisted settings (e.g. the chosen language) before first paint so the
+  // saved locale applies immediately, with no flash of the default language.
+  final prefs = await SharedPreferences.getInstance();
   // Fire-and-forget: ads aren't needed for first paint, so don't block launch.
   unawaited(MobileAds.instance.initialize());
-  runApp(const ProviderScope(child: CrumbsApp()));
+  runApp(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const CrumbsApp(),
+    ),
+  );
 }
 
 class CrumbsApp extends ConsumerStatefulWidget {
@@ -63,10 +74,14 @@ class _CrumbsAppState extends ConsumerState<CrumbsApp> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = ref.watch(localeControllerProvider);
     return MaterialApp.router(
       title: 'Just The Crumbs',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      locale: locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: appRouter,
     );
   }

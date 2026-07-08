@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../services/import/recipe_import_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -28,7 +29,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   Future<void> _import() async {
     final url = _url.text.trim();
     if (url.isEmpty) {
-      setState(() => _error = 'Please paste a URL');
+      setState(() => _error = AppLocalizations.of(context).importPasteUrlError);
       return;
     }
     setState(() {
@@ -51,18 +52,18 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Import recipe'),
+        title: Text(l10n.importTitle),
         backgroundColor: AppColors.surface,
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Text(
-            'Paste a link from a recipe website or TikTok. We’ll pull out the '
-            'ingredients and steps so you can review and save.',
-            style: TextStyle(color: AppColors.textMuted, height: 1.4),
+          Text(
+            l10n.importIntro,
+            style: const TextStyle(color: AppColors.textMuted, height: 1.4),
           ),
           const SizedBox(height: 20),
           TextField(
@@ -70,8 +71,8 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             keyboardType: TextInputType.url,
             autofocus: true,
             decoration: InputDecoration(
-              labelText: 'Recipe URL',
-              hintText: 'https://…',
+              labelText: l10n.importUrlLabel,
+              hintText: l10n.importUrlHint,
               prefixIcon: const Icon(Icons.link),
               errorText: _error,
             ),
@@ -88,13 +89,13 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                         strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(Icons.download),
-            label: Text(_loading ? 'Importing…' : 'Import'),
+            label: Text(_loading ? l10n.importingButton : l10n.importButton),
           ),
           if (_loading) ...[
             const SizedBox(height: 16),
-            const Center(
-              child: Text('Fetching and parsing the page…',
-                  style: TextStyle(color: AppColors.textMuted)),
+            Center(
+              child: Text(l10n.importProgress,
+                  style: const TextStyle(color: AppColors.textMuted)),
             ),
           ],
         ],

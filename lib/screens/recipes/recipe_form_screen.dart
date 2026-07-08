@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/gen/app_localizations.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/providers.dart';
 import '../../services/import/recipe_import_service.dart';
 import '../../theme/app_theme.dart';
@@ -29,6 +31,10 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
   final _sourceUrl = TextEditingController();
   bool _isPublic = false;
   final Set<String> _categoryIds = {};
+  // Content language. Defaults to the author's current UI language (a good
+  // proxy for what they're writing in); overridable via the dropdown, and
+  // replaced with the recipe's stored value when editing.
+  late String _language = ref.read(localeControllerProvider).languageCode;
 
   bool _loading = false;
   bool _loadedExisting = false;
@@ -67,6 +73,7 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
       _steps.text = recipe.steps.join('\n');
       _sourceUrl.text = recipe.sourceUrl;
       _isPublic = recipe.isPublic;
+      _language = recipe.language;
       _categoryIds
         ..clear()
         ..addAll(recipe.categoryIds);
@@ -81,6 +88,7 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _loading = true);
     final repo = ref.read(recipeRepositoryProvider);
     try {
@@ -94,10 +102,11 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
           sourceUrl: _sourceUrl.text.trim(),
           isPublic: _isPublic,
           categoryIds: _categoryIds.toList(),
+          language: _language,
         );
         if (mounted) {
           context.pop();
-          _toast('Recipe updated');
+          _toast(l10n.recipeUpdated);
         }
       } else {
         final uid = ref.read(currentUidProvider);
@@ -113,14 +122,15 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
           sourceUrl: _sourceUrl.text.trim(),
           isPublic: _isPublic,
           categoryIds: _categoryIds.toList(),
+          language: _language,
         );
         if (mounted) {
           context.pushReplacement('/recipes/$id');
-          _toast('Recipe created');
+          _toast(l10n.recipeCreated);
         }
       }
     } catch (e) {
-      if (mounted) _toast('Error: $e');
+      if (mounted) _toast(l10n.errorWithMessage(e.toString()));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -134,11 +144,18 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
     // Lazily populate fields for edit mode.
     if (widget.isEditing && !_loadedExisting) _loadExisting();
 
+    final l10n = AppLocalizations.of(context);
     final categories = ref.watch(userCategoriesProvider).value ?? const [];
+    // Offer the six UI languages, plus the recipe's own language if it's some
+    // other code (so an existing value is never dropped from the dropdown).
+    final languageCodes = <String>{
+      for (final lang in supportedLanguages) lang.locale.languageCode,
+      _language,
+    }.toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? 'Edit recipe' : 'New recipe'),
+        title: Text(widget.isEditing ? l10n.editRecipeTitle : l10n.newRecipeTitle),
         backgroundColor: AppColors.surface,
       ),
       body: Form(
@@ -149,9 +166,9 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
             TextFormField(
               controller: _title,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(labelText: 'Title'),
+              decoration: InputDecoration(labelText: l10n.fieldTitle),
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Title is required' : null,
+                  (v == null || v.trim().isEmpty) ? l10n.titleRequired : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -160,20 +177,20 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
               minLines: 1,
               maxLines: 3,
               decoration:
-                  const InputDecoration(labelText: 'Description (optional)'),
+                  InputDecoration(labelText: l10n.fieldDescriptionOptional),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _ingredients,
               minLines: 4,
               maxLines: 12,
-              decoration: const InputDecoration(
-                labelText: 'Ingredients',
-                helperText: 'One per line',
+              decoration: InputDecoration(
+                labelText: l10n.fieldIngredients,
+                helperText: l10n.helperOnePerLine,
                 alignLabelWithHint: true,
               ),
               validator: (v) => _lines(v ?? '').isEmpty
-                  ? 'Add at least one ingredient'
+                  ? l10n.addAtLeastOneIngredient
                   : null,
             ),
             const SizedBox(height: 16),
@@ -181,25 +198,41 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
               controller: _steps,
               minLines: 4,
               maxLines: 16,
-              decoration: const InputDecoration(
-                labelText: 'Steps',
-                helperText: 'One per line',
+              decoration: InputDecoration(
+                labelText: l10n.fieldSteps,
+                helperText: l10n.helperOnePerLine,
                 alignLabelWithHint: true,
               ),
               validator: (v) =>
-                  _lines(v ?? '').isEmpty ? 'Add at least one step' : null,
+                  _lines(v ?? '').isEmpty ? l10n.addAtLeastOneStep : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _sourceUrl,
               keyboardType: TextInputType.url,
               decoration:
-                  const InputDecoration(labelText: 'Source URL (optional)'),
+                  InputDecoration(labelText: l10n.fieldSourceUrlOptional),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              // Key on the value so an async edit-mode load (which updates
+              // _language after first build) refreshes the shown selection.
+              key: ValueKey(_language),
+              initialValue: _language,
+              decoration: InputDecoration(labelText: l10n.recipeLanguageLabel),
+              items: [
+                for (final code in languageCodes)
+                  DropdownMenuItem(
+                    value: code,
+                    child: Text(languageDisplayName(code)),
+                  ),
+              ],
+              onChanged: (v) => setState(() => _language = v ?? _language),
             ),
             const SizedBox(height: 20),
             if (categories.isNotEmpty) ...[
-              const Text('Categories',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(l10n.categoriesLabel,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -220,8 +253,8 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
             ],
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Public'),
-              subtitle: const Text('Share in the Discover feed'),
+              title: Text(l10n.fieldPublic),
+              subtitle: Text(l10n.fieldPublicSubtitle),
               value: _isPublic,
               activeThumbColor: AppColors.primary,
               onChanged: (v) => setState(() => _isPublic = v),
@@ -236,7 +269,7 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white),
                     )
-                  : Text(widget.isEditing ? 'Save changes' : 'Create recipe'),
+                  : Text(widget.isEditing ? l10n.saveChanges : l10n.createRecipe),
             ),
           ],
         ),

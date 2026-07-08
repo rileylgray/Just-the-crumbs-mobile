@@ -69,6 +69,7 @@ class RecipeRepository {
     required String sourceUrl,
     required bool isPublic,
     required List<String> categoryIds,
+    required String language,
   }) async {
     final position = await _nextPosition(uid);
     final ref = await _recipes.add({
@@ -82,6 +83,7 @@ class RecipeRepository {
       'position': position,
       'public': isPublic,
       'categoryIds': categoryIds,
+      'language': language,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -97,6 +99,7 @@ class RecipeRepository {
     required String sourceUrl,
     required bool isPublic,
     required List<String> categoryIds,
+    required String language,
   }) {
     return _recipes.doc(id).update({
       'title': title,
@@ -106,6 +109,7 @@ class RecipeRepository {
       'sourceUrl': sourceUrl,
       'public': isPublic,
       'categoryIds': categoryIds,
+      'language': language,
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
@@ -146,6 +150,7 @@ class RecipeRepository {
       sourceUrl: source.sourceUrl,
       isPublic: false,
       categoryIds: const [],
+      language: source.language, // preserve the original recipe's language
     );
   }
 

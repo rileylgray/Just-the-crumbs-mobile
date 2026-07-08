@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../models/category.dart';
 import '../../models/recipe.dart';
 import '../../providers/providers.dart';
@@ -23,16 +24,17 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final recipesAsync = ref.watch(userRecipesProvider);
     final categories = ref.watch(userCategoriesProvider).value ?? const [];
     final categoriesById = {for (final c in categories) c.id: c};
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🥐 Just The Crumbs'),
+        title: Text(l10n.appTitle),
         actions: [
           IconButton(
-            tooltip: 'Categories',
+            tooltip: l10n.categoriesTitle,
             icon: const Icon(Icons.label_outline),
             onPressed: () => context.push('/categories'),
           ),
@@ -41,7 +43,7 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddSheet,
         icon: const Icon(Icons.add),
-        label: const Text('Add recipe'),
+        label: Text(l10n.recipesAddRecipe),
       ),
       body: Column(
         children: [
@@ -55,7 +57,8 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
           Expanded(
             child: recipesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Error: $e')),
+              error: (e, _) =>
+                  Center(child: Text(l10n.errorWithMessage(e.toString()))),
               data: (recipes) {
                 final filtered = _applyFilters(recipes);
                 if (filtered.isEmpty) {
@@ -125,6 +128,7 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
   }
 
   void _showAddSheet() {
+    final l10n = AppLocalizations.of(context);
     showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -133,8 +137,8 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.edit_note, color: AppColors.primary),
-              title: const Text('Create recipe'),
-              subtitle: const Text('Enter ingredients and steps by hand'),
+              title: Text(l10n.addSheetCreateTitle),
+              subtitle: Text(l10n.addSheetCreateSubtitle),
               onTap: () {
                 Navigator.pop(sheetContext);
                 context.push('/recipes/new');
@@ -142,8 +146,8 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.link, color: AppColors.primary),
-              title: const Text('Import from URL'),
-              subtitle: const Text('Paste a recipe or TikTok link'),
+              title: Text(l10n.addSheetImportTitle),
+              subtitle: Text(l10n.addSheetImportSubtitle),
               onTap: () {
                 Navigator.pop(sheetContext);
                 context.push('/recipes/import');
@@ -151,8 +155,8 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.qr_code, color: AppColors.primary),
-              title: const Text('Enter a share code'),
-              subtitle: const Text('Open a recipe someone shared with you'),
+              title: Text(l10n.addSheetCodeTitle),
+              subtitle: Text(l10n.addSheetCodeSubtitle),
               onTap: () {
                 Navigator.pop(sheetContext);
                 _showCodeDialog();
@@ -165,30 +169,31 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
   }
 
   Future<void> _showCodeDialog() async {
+    final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
     final code = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Enter share code'),
+        title: Text(l10n.shareCodeDialogTitle),
         content: TextField(
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(
-            hintText: 'e.g. K7Q2M9AZ',
-            prefixIcon: Icon(Icons.tag),
+          decoration: InputDecoration(
+            hintText: l10n.shareCodeHint,
+            prefixIcon: const Icon(Icons.tag),
           ),
           onSubmitted: (v) => Navigator.pop(dialogContext, v.trim()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(l10n.actionCancel),
           ),
           TextButton(
             onPressed: () =>
                 Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('Open'),
+            child: Text(l10n.actionOpen),
           ),
         ],
       ),
@@ -209,9 +214,9 @@ class _SearchBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       child: TextField(
         onChanged: onChanged,
-        decoration: const InputDecoration(
-          hintText: 'Search recipes',
-          prefixIcon: Icon(Icons.search),
+        decoration: InputDecoration(
+          hintText: AppLocalizations.of(context).recipesSearch,
+          prefixIcon: const Icon(Icons.search),
           isDense: true,
         ),
       ),
@@ -241,7 +246,7 @@ class _CategoryFilterBar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(right: 8, top: 6, bottom: 6),
             child: ChoiceChip(
-              label: const Text('All'),
+              label: Text(AppLocalizations.of(context).filterAll),
               selected: selectedId == null,
               onSelected: (_) => onSelected(null),
             ),
@@ -269,6 +274,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -278,15 +284,13 @@ class _EmptyState extends StatelessWidget {
             const Text('🥐', style: TextStyle(fontSize: 56)),
             const SizedBox(height: 16),
             Text(
-              filtering ? 'No recipes match' : 'No recipes yet',
+              filtering ? l10n.recipesEmptyNoMatchTitle : l10n.recipesEmptyTitle,
               style: const TextStyle(
                   fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              filtering
-                  ? 'Try a different search or category.'
-                  : 'Tap “Add recipe” to create or import your first one.',
+              filtering ? l10n.recipesEmptyNoMatchBody : l10n.recipesEmptyBody,
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textMuted),
             ),

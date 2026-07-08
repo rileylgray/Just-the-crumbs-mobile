@@ -13,6 +13,11 @@ class Recipe {
   final int position;
   final bool isPublic;
   final List<String> categoryIds;
+
+  /// BCP-47 language code of the recipe's content (e.g. `en`, `es`). Used to
+  /// filter and badge recipes in the public Discover feed. Legacy recipes with
+  /// no stored value default to English, which the app used before this field.
+  final String language;
   final String? shareCode;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -29,6 +34,7 @@ class Recipe {
     required this.position,
     required this.isPublic,
     required this.categoryIds,
+    this.language = 'en',
     this.shareCode,
     this.createdAt,
     this.updatedAt,
@@ -52,6 +58,9 @@ class Recipe {
       position: (data['position'] as num?)?.toInt() ?? 0,
       isPublic: data['public'] as bool? ?? false,
       categoryIds: _stringList(data['categoryIds']),
+      language: (data['language'] as String?)?.trim().isNotEmpty == true
+          ? (data['language'] as String)
+          : 'en',
       shareCode: data['shareCode'] as String?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
@@ -69,6 +78,7 @@ class Recipe {
         'position': position,
         'public': isPublic,
         'categoryIds': categoryIds,
+        'language': language,
       };
 
   Recipe copyWith({
@@ -80,6 +90,7 @@ class Recipe {
     int? position,
     bool? isPublic,
     List<String>? categoryIds,
+    String? language,
   }) {
     return Recipe(
       id: id,
@@ -93,6 +104,8 @@ class Recipe {
       position: position ?? this.position,
       isPublic: isPublic ?? this.isPublic,
       categoryIds: categoryIds ?? this.categoryIds,
+      language: language ?? this.language,
+      shareCode: shareCode,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

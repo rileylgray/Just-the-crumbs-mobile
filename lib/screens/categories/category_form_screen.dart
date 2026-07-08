@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 
@@ -42,6 +43,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final l10n = AppLocalizations.of(context);
     setState(() => _loading = true);
     final repo = ref.read(categoryRepositoryProvider);
     try {
@@ -56,8 +58,8 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.errorWithMessage(e.toString()))));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -67,9 +69,11 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
   @override
   Widget build(BuildContext context) {
     _loadExisting();
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isEditing ? 'Edit category' : 'New category'),
+        title: Text(
+            widget.isEditing ? l10n.editCategoryTitle : l10n.newCategoryTitle),
         backgroundColor: AppColors.surface,
       ),
       body: Form(
@@ -80,12 +84,13 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
             TextFormField(
               controller: _name,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: InputDecoration(labelText: l10n.fieldName),
               validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+                  (v == null || v.trim().isEmpty) ? l10n.nameRequired : null,
             ),
             const SizedBox(height: 24),
-            const Text('Color', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(l10n.fieldColor,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 12,
@@ -109,7 +114,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white),
                     )
-                  : Text(widget.isEditing ? 'Save' : 'Create category'),
+                  : Text(widget.isEditing ? l10n.actionSave : l10n.createCategory),
             ),
           ],
         ),

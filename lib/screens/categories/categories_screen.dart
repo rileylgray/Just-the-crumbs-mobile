@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../models/category.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
@@ -11,29 +12,31 @@ class CategoriesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final categoriesAsync = ref.watch(userCategoriesProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Categories'),
+        title: Text(l10n.categoriesTitle),
         backgroundColor: AppColors.surface,
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/categories/new'),
         icon: const Icon(Icons.add),
-        label: const Text('New category'),
+        label: Text(l10n.newCategoryButton),
       ),
       body: categoriesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) =>
+            Center(child: Text(l10n.errorWithMessage(e.toString()))),
         data: (categories) {
           if (categories.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
+                padding: const EdgeInsets.all(32),
                 child: Text(
-                  'No categories yet.\nCreate one to organize your recipes.',
+                  l10n.categoriesEmpty,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textMuted),
+                  style: const TextStyle(color: AppColors.textMuted),
                 ),
               ),
             );
@@ -81,20 +84,21 @@ class _CategoryTile extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Delete "${category.name}"?'),
-        content: const Text('Recipes keep their content; they just lose this tag.'),
+        title: Text(l10n.deleteCategoryTitle(category.name)),
+        content: Text(l10n.deleteCategoryBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.actionCancel),
           ),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppColors.danger),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Delete'),
+            child: Text(l10n.actionDelete),
           ),
         ],
       ),

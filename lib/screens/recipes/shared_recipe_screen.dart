@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../models/recipe.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
@@ -17,25 +18,27 @@ class SharedRecipeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     final recipeAsync = ref.watch(sharedRecipeProvider(code));
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Shared recipe'),
+        title: Text(l10n.sharedRecipeTitle),
         backgroundColor: AppColors.surface,
       ),
       body: recipeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) =>
+            Center(child: Text(l10n.errorWithMessage(e.toString()))),
         data: (recipe) {
           if (recipe == null) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
+                padding: const EdgeInsets.all(32),
                 child: Text(
-                  'That share code doesn’t exist.\nDouble-check it and try again.',
+                  l10n.shareCodeNotFound,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textMuted),
+                  style: const TextStyle(color: AppColors.textMuted),
                 ),
               ),
             );
@@ -51,7 +54,7 @@ class SharedRecipeScreen extends ConsumerWidget {
                 child: ElevatedButton.icon(
                   onPressed: () => _copy(context, ref, recipeAsync.value!),
                   icon: const Icon(Icons.bookmark_add_outlined),
-                  label: const Text('Copy to my recipes'),
+                  label: Text(l10n.copyToMyRecipes),
                 ),
               ),
             ),
@@ -59,6 +62,7 @@ class SharedRecipeScreen extends ConsumerWidget {
   }
 
   Future<void> _copy(BuildContext context, WidgetRef ref, Recipe recipe) async {
+    final l10n = AppLocalizations.of(context);
     final uid = ref.read(currentUidProvider);
     if (uid == null) return;
     final authorName = ref.read(currentAuthorNameProvider);
@@ -68,7 +72,7 @@ class SharedRecipeScreen extends ConsumerWidget {
     if (context.mounted) {
       context.pushReplacement('/recipes/$id');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Copied to your recipes')),
+        SnackBar(content: Text(l10n.copiedToRecipes)),
       );
     }
   }

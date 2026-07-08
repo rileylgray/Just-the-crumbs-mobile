@@ -18,22 +18,33 @@ rewrite of the original Rails app; it does not connect to any backend of its own
   and — when those come up short — can optionally ask Gemini (Firebase AI Logic,
   fallback-only, free-tier friendly) to untangle the recipe.
 - **Categories** — colored, per-user; filter your collection by category.
-- **Discover** — public feed of others' recipes with search and a "surprise me"
-  random pick.
+- **Discover** — public feed of others' recipes with search, a "surprise me"
+  random pick, and a content-language filter (defaults to your app language,
+  with an "All languages" option). Each recipe carries a language tag shown as
+  a badge on its card.
 - **Comments** — on public recipes, as a signed-in user or a guest (anonymous).
 - **Share** — domain-free: shares a short code + a `justthecrumbs://share/<code>`
   link that opens the app straight to the recipe (recipient pastes the code or
   taps the link). Works for private recipes too; copy any shared recipe into your
   own collection.
+- **Languages** — the UI is fully localized in 6 languages (English, Spanish,
+  French, German, Portuguese, Italian). English is the default; pick another
+  from Profile → Language and the choice persists across restarts. Recipes also
+  carry a content-language tag (set on the recipe form, defaulting to your app
+  language) so the Discover feed can filter and badge them by language.
 
 ## Tech
 
 Flutter · Riverpod · go_router · Firebase Auth (Anonymous + Google) ·
 Cloud Firestore · `http`/`html` for import · `firebase_ai` (Gemini import
-fallback) · `share_plus` · `app_links` · `google_mobile_ads` (AdMob).
+fallback) · `share_plus` · `app_links` · `google_mobile_ads` (AdMob) ·
+`flutter_localizations` + ARB/`gen-l10n` (i18n) · `shared_preferences`
+(persisted language choice).
 
 `lib/` is organized into `models/`, `services/` (repositories + import + share +
-auth + ads), `providers/`, `router/`, `screens/`, `widgets/`, and `theme/`.
+auth + ads), `providers/`, `router/`, `screens/`, `widgets/`, `theme/`, and
+`l10n/` (ARB translation files; `l10n/gen/` holds the generated
+`AppLocalizations`).
 
 ## Ads (AdMob)
 

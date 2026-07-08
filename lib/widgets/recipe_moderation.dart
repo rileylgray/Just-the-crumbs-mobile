@@ -1,9 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../l10n/gen/app_localizations.dart';
 import '../models/recipe.dart';
 import '../providers/providers.dart';
 import '../services/moderation_repository.dart';
+
+/// Localized label for a report reason, shown in the report dialog.
+String reportReasonLabel(AppLocalizations l10n, ReportReason reason) {
+  switch (reason) {
+    case ReportReason.spam:
+      return l10n.reportReasonSpam;
+    case ReportReason.inappropriate:
+      return l10n.reportReasonInappropriate;
+    case ReportReason.offensive:
+      return l10n.reportReasonOffensive;
+    case ReportReason.copyright:
+      return l10n.reportReasonCopyright;
+    case ReportReason.other:
+      return l10n.reportReasonOther;
+  }
+}
 
 /// Overflow menu of moderation actions ("Report", "Block") for a public recipe.
 /// Reused by the public feed cards and the public recipe detail screen.
@@ -15,8 +32,9 @@ class RecipeModerationMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     return PopupMenuButton<String>(
-      tooltip: 'More',
+      tooltip: l10n.tooltipMore,
       icon: Icon(Icons.more_vert, color: iconColor),
       onSelected: (value) {
         switch (value) {
@@ -26,21 +44,21 @@ class RecipeModerationMenu extends ConsumerWidget {
             blockRecipe(context, ref, recipe);
         }
       },
-      itemBuilder: (context) => const [
+      itemBuilder: (context) => [
         PopupMenuItem(
           value: 'report',
           child: ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.flag_outlined),
-            title: Text('Report'),
+            leading: const Icon(Icons.flag_outlined),
+            title: Text(l10n.menuReport),
           ),
         ),
         PopupMenuItem(
           value: 'block',
           child: ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.block),
-            title: Text('Block / hide'),
+            leading: const Icon(Icons.block),
+            title: Text(l10n.menuBlock),
           ),
         ),
       ],
@@ -56,21 +74,23 @@ Future<void> blockRecipe(
 ) async {
   final uid = ref.read(currentUidProvider);
   if (uid == null) return;
+  final l10n = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.of(context);
   final repo = ref.read(moderationRepositoryProvider);
   try {
     await repo.blockRecipe(uid, recipe.id);
     messenger.showSnackBar(
       SnackBar(
-        content: Text('Hid "${recipe.title}"'),
+        content: Text(l10n.moderationHidRecipe(recipe.title)),
         action: SnackBarAction(
-          label: 'Undo',
+          label: l10n.actionUndo,
           onPressed: () => repo.unblockRecipe(uid, recipe.id),
         ),
       ),
     );
   } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text('Could not block: $e')));
+    messenger
+        .showSnackBar(SnackBar(content: Text(l10n.couldNotBlock(e.toString()))));
   }
 }
 
@@ -82,6 +102,7 @@ Future<void> reportRecipe(
 ) async {
   final uid = ref.read(currentUidProvider);
   if (uid == null) return;
+  final l10n = AppLocalizations.of(context);
   final result = await showDialog<_ReportResult>(
     context: context,
     builder: (_) => _ReportDialog(recipeTitle: recipe.title),
@@ -97,10 +118,11 @@ Future<void> reportRecipe(
           details: result.details,
         );
     messenger.showSnackBar(
-      const SnackBar(content: Text('Thanks — your report was submitted')),
+      SnackBar(content: Text(l10n.reportSubmitted)),
     );
   } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text('Could not report: $e')));
+    messenger.showSnackBar(
+        SnackBar(content: Text(l10n.couldNotReport(e.toString()))));
   }
 }
 
@@ -130,15 +152,16 @@ class _ReportDialogState extends State<_ReportDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Report recipe'),
+      title: Text(l10n.reportRecipeTitle),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Why are you reporting "${widget.recipeTitle}"?',
+              l10n.reportWhy(widget.recipeTitle),
               style: const TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 8),
@@ -153,7 +176,7 @@ class _ReportDialogState extends State<_ReportDialog> {
                       contentPadding: EdgeInsets.zero,
                       dense: true,
                       value: reason,
-                      title: Text(reason.label),
+                      title: Text(reportReasonLabel(l10n, reason)),
                     ),
                 ],
               ),
@@ -163,8 +186,8 @@ class _ReportDialogState extends State<_ReportDialog> {
               controller: _details,
               minLines: 1,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Details (optional)',
+              decoration: InputDecoration(
+                labelText: l10n.reportDetailsOptional,
                 isDense: true,
               ),
             ),
@@ -174,13 +197,13 @@ class _ReportDialogState extends State<_ReportDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.actionCancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(
             _ReportResult(_reason, _details.text),
           ),
-          child: const Text('Submit'),
+          child: Text(l10n.actionSubmit),
         ),
       ],
     );

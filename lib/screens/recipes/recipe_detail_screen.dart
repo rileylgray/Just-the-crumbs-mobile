@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/gen/app_localizations.dart';
 import '../../models/recipe.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
@@ -31,6 +32,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final recipeId = widget.recipeId;
     final recipeAsync = ref.watch(recipeProvider(recipeId));
     final categories = ref.watch(userCategoriesProvider).value ?? const [];
@@ -42,13 +44,13 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
           body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
         appBar: AppBar(),
-        body: Center(child: Text('Error: $e')),
+        body: Center(child: Text(l10n.errorWithMessage(e.toString()))),
       ),
       data: (recipe) {
         if (recipe == null) {
           return Scaffold(
             appBar: AppBar(),
-            body: const Center(child: Text('Recipe not found')),
+            body: Center(child: Text(l10n.recipeNotFound)),
           );
         }
         final isOwner = recipe.userId == uid;
@@ -57,7 +59,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
             title: const Text(''),
             actions: [
               IconButton(
-                tooltip: 'Share',
+                tooltip: l10n.tooltipShare,
                 icon: const Icon(Icons.share_outlined),
                 onPressed: () => _share(context, ref, recipe),
               ),
@@ -65,12 +67,14 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
                 PopupMenuButton<String>(
                   onSelected: (v) => _onMenu(context, ref, recipe, v),
                   itemBuilder: (context) => [
-                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'edit', child: Text(l10n.menuEdit)),
                     PopupMenuItem(
                       value: 'public',
-                      child: Text(recipe.isPublic ? 'Make private' : 'Make public'),
+                      child: Text(recipe.isPublic
+                          ? l10n.menuMakePrivate
+                          : l10n.menuMakePublic),
                     ),
-                    const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                    PopupMenuItem(value: 'delete', child: Text(l10n.menuDelete)),
                   ],
                 ),
             ],
@@ -82,17 +86,20 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
   }
 
   Future<void> _share(BuildContext context, WidgetRef ref, Recipe recipe) async {
+    final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
       final code = await ref.read(recipeRepositoryProvider).ensureShareCode(recipe);
       await ref.read(shareServiceProvider).shareRecipe(recipe, code);
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Could not share: $e')));
+      messenger.showSnackBar(
+          SnackBar(content: Text(l10n.couldNotShare(e.toString()))));
     }
   }
 
   Future<void> _onMenu(
       BuildContext context, WidgetRef ref, Recipe recipe, String value) async {
+    final l10n = AppLocalizations.of(context);
     final repo = ref.read(recipeRepositoryProvider);
     switch (value) {
       case 'edit':
@@ -102,25 +109,25 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(recipe.isPublic
-                ? 'Recipe is now private'
-                : 'Recipe is now public'),
+                ? l10n.recipeNowPrivate
+                : l10n.recipeNowPublic),
           ));
         }
       case 'delete':
         final confirm = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Delete recipe?'),
-            content: const Text('This cannot be undone.'),
+            title: Text(l10n.deleteRecipeTitle),
+            content: Text(l10n.deleteRecipeBody),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancel'),
+                child: Text(l10n.actionCancel),
               ),
               TextButton(
                 style: TextButton.styleFrom(foregroundColor: AppColors.danger),
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Delete'),
+                child: Text(l10n.actionDelete),
               ),
             ],
           ),

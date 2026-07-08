@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/gen/app_localizations.dart';
 import '../models/category.dart';
 import '../models/recipe.dart';
+import '../providers/locale_provider.dart';
 import '../theme/app_theme.dart';
 
 /// Summary card for a recipe in a list.
@@ -12,6 +14,7 @@ class RecipeCard extends StatelessWidget {
     required this.onTap,
     this.categoriesById = const {},
     this.showAuthor = false,
+    this.showLanguage = false,
     this.trailing,
   });
 
@@ -19,10 +22,15 @@ class RecipeCard extends StatelessWidget {
   final VoidCallback onTap;
   final Map<String, Category> categoriesById;
   final bool showAuthor;
+
+  /// Show a small badge with the recipe's content language (used in the
+  /// public Discover feed, where recipes span many languages).
+  final bool showLanguage;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final chips = recipe.categoryIds
         .map((id) => categoriesById[id])
         .whereType<Category>()
@@ -78,16 +86,26 @@ class RecipeCard extends StatelessWidget {
                         Icon(Icons.restaurant_menu,
                             size: 14, color: Colors.grey.shade400),
                         const SizedBox(width: 4),
-                        Text(
-                          '${recipe.ingredients.length} ingredients · ${recipe.steps.length} steps',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade500),
+                        Flexible(
+                          child: Text(
+                            l10n.ingredientsStepsSeparator(
+                              l10n.ingredientsCount(recipe.ingredients.length),
+                              l10n.stepsCount(recipe.steps.length),
+                            ),
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade500),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
+                        if (showLanguage) ...[
+                          const SizedBox(width: 8),
+                          _LanguageBadge(code: recipe.language),
+                        ],
                       ],
                     ),
                     if (showAuthor) ...[
                       const SizedBox(height: 4),
-                      Text('by ${recipe.authorName}',
+                      Text(l10n.recipeByAuthor(recipe.authorName),
                           style: TextStyle(
                               fontSize: 12, color: Colors.grey.shade500)),
                     ],
@@ -124,6 +142,38 @@ class RecipeCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A small pill showing a recipe's content language (e.g. "Español", "JA").
+class _LanguageBadge extends StatelessWidget {
+  const _LanguageBadge({required this.code});
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.translate, size: 11, color: AppColors.primaryDark),
+          const SizedBox(width: 4),
+          Text(
+            languageDisplayName(code),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primaryDark,
+            ),
+          ),
+        ],
       ),
     );
   }

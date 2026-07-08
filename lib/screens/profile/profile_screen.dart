@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../l10n/gen/app_localizations.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 
@@ -16,18 +18,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _busy = false;
 
   Future<void> _signInWithGoogle() async {
+    final l10n = AppLocalizations.of(context);
     setState(() => _busy = true);
     try {
       await ref.read(authServiceProvider).signInWithGoogle();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Signed in — your recipes are saved to your account')),
+          SnackBar(content: Text(l10n.profileSignedIn)),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Sign-in failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.profileSignInFailed(e.toString()))),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -44,24 +48,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _deleteAccount() async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete account?'),
-        content: const Text(
-          'This permanently deletes your account and your data — your recipes, '
-          'their comments, your categories, and your shared links. This cannot '
-          'be undone.\n\nYou may be asked to sign in again to confirm.',
-        ),
+        title: Text(l10n.profileDeleteAccountTitle),
+        content: Text(l10n.profileDeleteAccountBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.actionCancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Delete'),
+            child: Text(l10n.actionDelete),
           ),
         ],
       ),
@@ -73,34 +74,83 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       await ref.read(authServiceProvider).deleteAccount();
       messenger.showSnackBar(
-        const SnackBar(content: Text('Your account and data were deleted')),
+        SnackBar(content: Text(l10n.profileAccountDeleted)),
       );
     } on FirebaseAuthException catch (e) {
       messenger.showSnackBar(
         SnackBar(
           content: Text(e.code == 'requires-recent-login'
-              ? 'Please sign in again, then retry deleting your account.'
-              : 'Could not delete account: ${e.message}'),
+              ? l10n.profileReauthNeeded
+              : l10n.profileDeleteFailed(e.message ?? '')),
         ),
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Could not delete account: $e')),
+        SnackBar(content: Text(l10n.profileDeleteFailed(e.toString()))),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
+  Future<void> _pickLanguage() async {
+    final l10n = AppLocalizations.of(context);
+    final current = ref.read(localeControllerProvider);
+    final selected = await showModalBottomSheet<Locale>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  l10n.languagePickerTitle,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            RadioGroup<Locale>(
+              groupValue: current,
+              onChanged: (v) => Navigator.pop(sheetContext, v),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final lang in supportedLanguages)
+                    RadioListTile<Locale>(
+                      value: lang.locale,
+                      title: Text(lang.name),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (selected != null) {
+      await ref.read(localeControllerProvider.notifier).setLocale(selected);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final user = ref.watch(currentAppUserProvider).value;
     final isGuest = ref.watch(isGuestProvider);
     final recipeCount = ref.watch(userRecipesProvider).value?.length ?? 0;
+    final currentLocale = ref.watch(localeControllerProvider);
+    final currentLanguageName = supportedLanguages
+        .firstWhere((l) => l.locale == currentLocale,
+            orElse: () => supportedLanguages.first)
+        .name;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(l10n.navProfile),
         backgroundColor: AppColors.surface,
       ),
       body: ListView(
@@ -125,7 +175,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const SizedBox(height: 16),
           Center(
             child: Text(
-              user?.name ?? 'Guest',
+              user?.name ?? l10n.profileGuestName,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
           ),
@@ -136,7 +186,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           const SizedBox(height: 8),
           Center(
-            child: Text('$recipeCount recipe${recipeCount == 1 ? '' : 's'}',
+            child: Text(l10n.profileRecipeCount(recipeCount),
                 style: const TextStyle(color: AppColors.textMuted)),
           ),
           const SizedBox(height: 32),
@@ -147,13 +197,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('You’re browsing as a guest',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(l10n.profileGuestCardTitle,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Sign in with Google to keep your recipes safe and access '
-                      'them on any device. Recipes you’ve already made will carry over.',
-                      style: TextStyle(color: AppColors.textMuted, height: 1.4),
+                    Text(
+                      l10n.profileGuestCardBody,
+                      style: const TextStyle(
+                          color: AppColors.textMuted, height: 1.4),
                     ),
                     const SizedBox(height: 16),
                     _GoogleButton(onPressed: _busy ? null : _signInWithGoogle),
@@ -165,7 +216,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             OutlinedButton.icon(
               onPressed: _busy ? null : _signOut,
               icon: const Icon(Icons.logout),
-              label: const Text('Sign out'),
+              label: Text(l10n.profileSignOut),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.textMuted,
                 side: const BorderSide(color: AppColors.textMuted),
@@ -174,10 +225,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ],
           const SizedBox(height: 24),
+          Card(
+            margin: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.language, color: AppColors.primary),
+              title: Text(l10n.profileLanguage),
+              subtitle: Text(currentLanguageName),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _busy ? null : _pickLanguage,
+            ),
+          ),
+          const SizedBox(height: 24),
           TextButton.icon(
             onPressed: _busy ? null : _deleteAccount,
             icon: const Icon(Icons.delete_forever, size: 20),
-            label: const Text('Delete account'),
+            label: Text(l10n.profileDeleteAccount),
             style: TextButton.styleFrom(foregroundColor: AppColors.danger),
           ),
         ],
@@ -208,7 +270,7 @@ class _GoogleButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
         icon: const Icon(Icons.login, color: AppColors.primary),
-        label: const Text('Sign in with Google'),
+        label: Text(AppLocalizations.of(context).profileSignInWithGoogle),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../l10n/gen/app_localizations.dart';
 import 'banner_ad_widget.dart';
 
 /// Bottom-navigation shell hosting the three primary tabs.
@@ -11,6 +12,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: navigationShell,
       // Persistent banner ad, pinned just above the bottom nav so it stays on
@@ -26,21 +28,21 @@ class ScaffoldWithNavBar extends StatelessWidget {
               index,
               initialLocation: index == navigationShell.currentIndex,
             ),
-            destinations: const [
+            destinations: [
               NavigationDestination(
-                icon: Icon(Icons.menu_book_outlined),
-                selectedIcon: Icon(Icons.menu_book),
-                label: 'My Recipes',
+                icon: const Icon(Icons.menu_book_outlined),
+                selectedIcon: const Icon(Icons.menu_book),
+                label: l10n.navMyRecipes,
               ),
               NavigationDestination(
-                icon: Icon(Icons.public_outlined),
-                selectedIcon: Icon(Icons.public),
-                label: 'Discover',
+                icon: const Icon(Icons.public_outlined),
+                selectedIcon: const Icon(Icons.public),
+                label: l10n.navDiscover,
               ),
               NavigationDestination(
-                icon: Icon(Icons.person_outline),
-                selectedIcon: Icon(Icons.person),
-                label: 'Profile',
+                icon: const Icon(Icons.person_outline),
+                selectedIcon: const Icon(Icons.person),
+                label: l10n.navProfile,
               ),
             ],
           ),
