@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/recipe_card.dart';
+import '../../widgets/recipe_moderation.dart';
 
 class PublicFeedScreen extends ConsumerStatefulWidget {
   const PublicFeedScreen({super.key});
@@ -20,7 +21,7 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final recipesAsync = ref.watch(publicRecipesProvider);
+    final recipesAsync = ref.watch(visiblePublicRecipesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -82,6 +83,7 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
                     recipe: filtered[i],
                     showAuthor: true,
                     onTap: () => context.push('/public/${filtered[i].id}'),
+                    trailing: RecipeModerationMenu(recipe: filtered[i]),
                   ),
                 );
               },

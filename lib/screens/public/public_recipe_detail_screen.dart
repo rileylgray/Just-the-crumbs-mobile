@@ -7,6 +7,7 @@ import '../../models/comment.dart';
 import '../../models/recipe.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/recipe_moderation.dart';
 import '../../widgets/recipe_view.dart';
 
 /// Public recipe detail: read the recipe, copy it to your collection, and read
@@ -43,6 +44,35 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
                 icon: const Icon(Icons.share_outlined),
                 onPressed: () => _share(context, ref, recipe),
               ),
+              PopupMenuButton<String>(
+                tooltip: 'More',
+                onSelected: (value) {
+                  switch (value) {
+                    case 'report':
+                      reportRecipe(context, ref, recipe);
+                    case 'block':
+                      _blockAndLeave(context, ref, recipe);
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: 'report',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.flag_outlined),
+                      title: Text('Report'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'block',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.block),
+                      title: Text('Block / hide'),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
           body: RecipeView(
@@ -72,6 +102,13 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Could not share: $e')));
     }
+  }
+
+  Future<void> _blockAndLeave(
+      BuildContext context, WidgetRef ref, Recipe recipe) async {
+    await blockRecipe(context, ref, recipe);
+    // The recipe is now hidden; leave the detail screen.
+    if (context.mounted && context.canPop()) context.pop();
   }
 
   Future<void> _copy(BuildContext context, WidgetRef ref, Recipe recipe) async {

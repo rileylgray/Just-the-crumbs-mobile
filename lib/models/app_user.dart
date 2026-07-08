@@ -10,12 +10,16 @@ class AppUser {
   final String? photoUrl;
   final bool isGuest;
 
+  /// Public recipe ids this user has blocked (hidden from their feed).
+  final List<String> blockedRecipeIds;
+
   const AppUser({
     required this.uid,
     required this.name,
     required this.email,
     required this.photoUrl,
     required this.isGuest,
+    this.blockedRecipeIds = const [],
   });
 
   factory AppUser.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -26,6 +30,10 @@ class AppUser {
       email: data['email'] as String?,
       photoUrl: data['photoUrl'] as String?,
       isGuest: data['isGuest'] as bool? ?? true,
+      blockedRecipeIds: (data['blockedRecipeIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
     );
   }
 
@@ -34,5 +42,6 @@ class AppUser {
         'email': email,
         'photoUrl': photoUrl,
         'isGuest': isGuest,
+        'blockedRecipeIds': blockedRecipeIds,
       };
 }

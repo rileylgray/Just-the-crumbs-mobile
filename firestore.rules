@@ -54,6 +54,19 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.userId == request.auth.uid;
     }
 
+    // ---- Reports ------------------------------------------------------------
+    // Any signed-in user (incl. guests) may file a report against a public
+    // recipe. Reports are review-only: they can't be read or changed from the
+    // client — triage happens via the Firebase console / Admin SDK, which
+    // bypass these rules.
+    match /reports/{reportId} {
+      allow read, update, delete: if false;
+      allow create: if signedIn()
+                    && request.resource.data.reporterUid == request.auth.uid
+                    && request.resource.data.recipeId is string
+                    && request.resource.data.reason is string;
+    }
+
     // ---- Categories ---------------------------------------------------------
     match /categories/{categoryId} {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;

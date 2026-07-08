@@ -10,6 +10,7 @@ import '../services/ad_service.dart';
 import '../services/auth_service.dart';
 import '../services/category_repository.dart';
 import '../services/comment_repository.dart';
+import '../services/moderation_repository.dart';
 import '../services/recipe_repository.dart';
 import '../services/share_service.dart';
 
@@ -34,6 +35,9 @@ final categoryRepositoryProvider = Provider<CategoryRepository>(
 );
 final commentRepositoryProvider = Provider<CommentRepository>(
   (ref) => CommentRepository(ref.watch(firestoreProvider)),
+);
+final moderationRepositoryProvider = Provider<ModerationRepository>(
+  (ref) => ModerationRepository(ref.watch(firestoreProvider)),
 );
 final shareServiceProvider = Provider<ShareService>((_) => ShareService());
 
@@ -90,6 +94,22 @@ final userRecipesProvider = StreamProvider<List<Recipe>>((ref) {
 final publicRecipesProvider = StreamProvider<List<Recipe>>(
   (ref) => ref.watch(recipeRepositoryProvider).watchPublicRecipes(),
 );
+
+/// Recipe ids the current user has blocked (hidden from their public feed).
+final blockedRecipeIdsProvider = Provider<Set<String>>(
+  (ref) =>
+      ref.watch(currentAppUserProvider).value?.blockedRecipeIds.toSet() ??
+      const {},
+);
+
+/// Public feed with the current user's blocked recipes filtered out.
+final visiblePublicRecipesProvider = Provider<AsyncValue<List<Recipe>>>((ref) {
+  final blocked = ref.watch(blockedRecipeIdsProvider);
+  return ref.watch(publicRecipesProvider).whenData(
+        (recipes) =>
+            recipes.where((r) => !blocked.contains(r.id)).toList(),
+      );
+});
 
 final recipeProvider = StreamProvider.family<Recipe?, String>(
   (ref, id) => ref.watch(recipeRepositoryProvider).watchRecipe(id),

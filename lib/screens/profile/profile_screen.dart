@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -37,6 +38,55 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     setState(() => _busy = true);
     try {
       await ref.read(authServiceProvider).signOut();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This permanently deletes your account and your data — your recipes, '
+          'their comments, your categories, and your shared links. This cannot '
+          'be undone.\n\nYou may be asked to sign in again to confirm.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(authServiceProvider).deleteAccount();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Your account and data were deleted')),
+      );
+    } on FirebaseAuthException catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(e.code == 'requires-recent-login'
+              ? 'Please sign in again, then retry deleting your account.'
+              : 'Could not delete account: ${e.message}'),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not delete account: $e')),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -117,12 +167,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               icon: const Icon(Icons.logout),
               label: const Text('Sign out'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.danger,
-                side: const BorderSide(color: AppColors.danger),
+                foregroundColor: AppColors.textMuted,
+                side: const BorderSide(color: AppColors.textMuted),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
           ],
+          const SizedBox(height: 24),
+          TextButton.icon(
+            onPressed: _busy ? null : _deleteAccount,
+            icon: const Icon(Icons.delete_forever, size: 20),
+            label: const Text('Delete account'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+          ),
         ],
       ),
     );
