@@ -1,0 +1,66 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // ---- Users --------------------------------------------------------------
+    // Profiles are publicly readable (author names on the public feed); each
+    // user may only write their own.
+    match /users/{uid} {
+      allow read: if true;
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // ---- Recipes ------------------------------------------------------------
+    match /recipes/{recipeId} {
+      allow read: if resource.data.public == true
+                  || (signedIn() && resource.data.userId == request.auth.uid);
+
+      allow create: if signedIn()
+                    && request.resource.data.userId == request.auth.uid;
+
+      allow update, delete: if signedIn()
+                    && resource.data.userId == request.auth.uid;
+
+      // ---- Comments (subcollection) -----------------------------------------
+      match /comments/{commentId} {
+        allow read: if get(/databases/$(database)/documents/recipes/$(recipeId))
+                        .data.public == true;
+
+        allow create: if signedIn()
+                      && get(/databases/$(database)/documents/recipes/$(recipeId))
+                          .data.public == true
+                      && request.resource.data.content is string
+                      && request.resource.data.content.size() > 0
+                      && request.resource.data.content.size() < 2000;
+
+        allow delete: if signedIn()
+                      && resource.data.userId == request.auth.uid;
+      }
+    }
+
+    // ---- Shares -------------------------------------------------------------
+    // A self-contained recipe snapshot keyed by an unguessable code. Knowing the
+    // code is the authorization to read it, so any signed-in user may read;
+    // only the owner may create/update/delete their snapshot.
+    match /shares/{code} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+                    && request.resource.data.userId == request.auth.uid;
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // ---- Categories ---------------------------------------------------------
+    match /categories/{categoryId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn()
+                    && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if signedIn()
+                    && resource.data.userId == request.auth.uid;
+    }
+  }
+}
