@@ -93,6 +93,71 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<void> _editDisplayName() async {
+    final l10n = AppLocalizations.of(context);
+    final currentName = ref.read(currentAppUserProvider).value?.name ?? '';
+    final controller = TextEditingController(text: currentName);
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.profileEditNameTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.profileEditNameBody,
+              style: const TextStyle(color: AppColors.textMuted, height: 1.3),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
+              maxLength: 40,
+              decoration: InputDecoration(
+                labelText: l10n.profileDisplayNameLabel,
+              ),
+              onSubmitted: (v) => Navigator.of(dialogContext).pop(v),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.actionCancel),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text),
+            child: Text(l10n.actionSave),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (newName == null) return;
+    final trimmed = newName.trim();
+    if (trimmed.isEmpty || trimmed == currentName || !mounted) return;
+
+    setState(() => _busy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(authServiceProvider).updateDisplayName(trimmed);
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.profileNameUpdated)),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.errorWithMessage(e.toString()))),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _pickLanguage() async {
     final l10n = AppLocalizations.of(context);
     final current = ref.read(localeControllerProvider);
@@ -113,18 +178,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
             ),
-            RadioGroup<Locale>(
-              groupValue: current,
-              onChanged: (v) => Navigator.pop(sheetContext, v),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final lang in supportedLanguages)
-                    RadioListTile<Locale>(
-                      value: lang.locale,
-                      title: Text(lang.name),
-                    ),
-                ],
+            Flexible(
+              child: RadioGroup<Locale>(
+                groupValue: current,
+                onChanged: (v) => Navigator.pop(sheetContext, v),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final lang in supportedLanguages)
+                      RadioListTile<Locale>(
+                        value: lang.locale,
+                        title: Text(lang.name),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -154,7 +221,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         backgroundColor: AppColors.surface,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.of(context).viewPadding.bottom,
+        ),
         children: [
           const SizedBox(height: 12),
           Center(
@@ -174,9 +246,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           const SizedBox(height: 16),
           Center(
-            child: Text(
-              user?.name ?? l10n.profileGuestName,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    user?.name ?? l10n.profileGuestName,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, size: 20),
+                  color: AppColors.textMuted,
+                  tooltip: l10n.profileEditName,
+                  onPressed: _busy ? null : _editDisplayName,
+                ),
+              ],
             ),
           ),
           if (user?.email != null)

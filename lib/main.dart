@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,15 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Keep recipes readable offline: Firestore caches every document it syncs, so
+  // "My Recipes" (and any recipe already opened) stays viewable with no network.
+  // Persistence is on by default on mobile; we set it explicitly — with an
+  // unbounded cache — so the whole collection survives offline rather than being
+  // evicted under the default size cap.
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
   // Load persisted settings (e.g. the chosen language) before first paint so the
   // saved locale applies immediately, with no flash of the default language.
   final prefs = await SharedPreferences.getInstance();

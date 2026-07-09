@@ -28,6 +28,9 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
     final recipesAsync = ref.watch(userRecipesProvider);
     final categories = ref.watch(userCategoriesProvider).value ?? const [];
     final categoriesById = {for (final c in categories) c.id: c};
+    // Offline: recipes stay viewable from Firestore's cache, but adding,
+    // importing and reordering all need the network — so drop those affordances.
+    final online = ref.watch(isOnlineProvider).value ?? true;
 
     return Scaffold(
       appBar: AppBar(
@@ -40,13 +43,16 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddSheet,
-        icon: const Icon(Icons.add),
-        label: Text(l10n.recipesAddRecipe),
-      ),
+      floatingActionButton: online
+          ? FloatingActionButton.extended(
+              onPressed: _showAddSheet,
+              icon: const Icon(Icons.add),
+              label: Text(l10n.recipesAddRecipe),
+            )
+          : null,
       body: Column(
         children: [
+          if (!online) const _OfflineBanner(),
           _SearchBar(onChanged: (v) => setState(() => _search = v)),
           if (categories.isNotEmpty)
             _CategoryFilterBar(
@@ -64,7 +70,7 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
                 if (filtered.isEmpty) {
                   return _EmptyState(filtering: _filtering);
                 }
-                return _filtering
+                return (_filtering || !online)
                     ? _plainList(filtered, categoriesById)
                     : _reorderableList(filtered, categoriesById);
               },
@@ -201,6 +207,35 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
     if (code != null && code.isNotEmpty && mounted) {
       context.push('/share/${code.toUpperCase()}');
     }
+  }
+}
+
+/// A slim bar shown above the recipe list while the device is offline, making
+/// it clear the list is cached and that adding/editing is paused.
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Material(
+      color: AppColors.primary.withValues(alpha: 0.12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off, size: 18, color: AppColors.textMuted),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.offlineBanner,
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

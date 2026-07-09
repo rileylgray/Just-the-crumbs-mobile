@@ -19,7 +19,12 @@ class AuthService {
   bool _googleInitialized = false;
 
   User? get currentUser => _auth.currentUser;
-  Stream<User?> authStateChanges() => _auth.authStateChanges();
+
+  /// User-state stream. Uses [User.userChanges] rather than
+  /// [FirebaseAuth.authStateChanges] so it also fires when a credential is
+  /// **linked** onto the current (anonymous) user — linking keeps the same uid,
+  /// so `authStateChanges` would not emit and `isAnonymous` would stay stale.
+  Stream<User?> userChanges() => _auth.userChanges();
 
   CollectionReference<Map<String, dynamic>> get _users => _db.collection('users');
 
@@ -75,6 +80,18 @@ class AuthService {
     final user = result.user!;
     await _writeGoogleProfile(user, googleUser);
     return user;
+  }
+
+  /// Updates the current user's display name — the name shown on the public
+  /// feed and denormalized onto recipes they share. Recipes already created
+  /// keep the name captured at the time; new ones pick up the new name.
+  Future<void> updateDisplayName(String name) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    await _users.doc(user.uid).set({'name': trimmed}, SetOptions(merge: true));
+    await user.updateDisplayName(trimmed);
   }
 
   Future<void> signOut() async {

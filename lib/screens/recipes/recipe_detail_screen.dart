@@ -38,6 +38,9 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
     final categories = ref.watch(userCategoriesProvider).value ?? const [];
     final categoriesById = {for (final c in categories) c.id: c};
     final uid = ref.watch(currentUidProvider);
+    // Offline the recipe is still readable from cache, but sharing, editing,
+    // deleting and publishing all reach the network — so hide those actions.
+    final online = ref.watch(isOnlineProvider).value ?? true;
 
     return recipeAsync.when(
       loading: () => const Scaffold(
@@ -58,12 +61,13 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
           appBar: AppBar(
             title: const Text(''),
             actions: [
-              IconButton(
-                tooltip: l10n.tooltipShare,
-                icon: const Icon(Icons.share_outlined),
-                onPressed: () => _share(context, ref, recipe),
-              ),
-              if (isOwner)
+              if (online)
+                IconButton(
+                  tooltip: l10n.tooltipShare,
+                  icon: const Icon(Icons.share_outlined),
+                  onPressed: () => _share(context, ref, recipe),
+                ),
+              if (isOwner && online)
                 PopupMenuButton<String>(
                   onSelected: (v) => _onMenu(context, ref, recipe, v),
                   itemBuilder: (context) => [

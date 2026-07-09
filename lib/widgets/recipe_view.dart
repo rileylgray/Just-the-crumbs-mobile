@@ -29,7 +29,12 @@ class RecipeView extends StatelessWidget {
         .toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        8,
+        20,
+        40 + MediaQuery.of(context).viewPadding.bottom,
+      ),
       children: [
         Text(
           recipe.title,

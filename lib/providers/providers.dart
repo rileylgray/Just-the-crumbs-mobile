@@ -51,9 +51,9 @@ final interstitialAdManagerProvider = Provider<InterstitialAdManager>((ref) {
 
 // ---- Auth ------------------------------------------------------------------
 
-/// Firebase auth-state stream (fires on anonymous sign-in, Google link, etc.).
+/// Firebase user-state stream (fires on anonymous sign-in, Google link, etc.).
 final authStateProvider = StreamProvider<User?>(
-  (ref) => ref.watch(authServiceProvider).authStateChanges(),
+  (ref) => ref.watch(authServiceProvider).userChanges(),
 );
 
 /// The current uid, or null before startup sign-in completes.
@@ -94,6 +94,26 @@ final userRecipesProvider = StreamProvider<List<Recipe>>((ref) {
 final publicRecipesProvider = StreamProvider<List<Recipe>>(
   (ref) => ref.watch(recipeRepositoryProvider).watchPublicRecipes(),
 );
+
+/// Whether the app can currently reach Firestore's backend.
+///
+/// Derived from snapshot metadata on a tiny listener over the user's own
+/// recipes: while offline, Firestore serves from its local cache and flags the
+/// snapshot `isFromCache`; once it syncs with the server that flag clears. This
+/// gives us a real backend-reachability signal (recipes stay viewable offline
+/// but writes are gated) without pulling in a separate connectivity package.
+/// Defaults to online (`true`) while unknown so actions aren't hidden on launch.
+final isOnlineProvider = StreamProvider<bool>((ref) {
+  final uid = ref.watch(currentUidProvider);
+  if (uid == null) return Stream.value(true);
+  return ref
+      .watch(firestoreProvider)
+      .collection('recipes')
+      .where('userId', isEqualTo: uid)
+      .limit(1)
+      .snapshots(includeMetadataChanges: true)
+      .map((snap) => !snap.metadata.isFromCache);
+});
 
 /// Recipe ids the current user has blocked (hidden from their public feed).
 final blockedRecipeIdsProvider = Provider<Set<String>>(

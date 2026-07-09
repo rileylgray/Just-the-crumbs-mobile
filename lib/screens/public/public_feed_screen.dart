@@ -22,17 +22,15 @@ class PublicFeedScreen extends ConsumerStatefulWidget {
 class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
   String _search = '';
 
-  // Language filter. Null means "all languages". Until the user picks a chip,
-  // the feed defaults to the viewer's UI language (see [_effectiveLanguage]).
-  String? _languageFilter;
-  bool _userChoseLanguage = false;
-
-  /// The language actually applied: the user's explicit choice once made,
-  /// otherwise the viewer's UI language when the feed has recipes in it, else
-  /// "all" — so the feed is never empty just because nobody posted in the
-  /// viewer's language yet.
-  String? _effectiveLanguage(List<String> available) {
-    if (_userChoseLanguage) return _languageFilter;
+  /// The language actually applied: the viewer's persisted choice once made
+  /// (see [contentLanguageProvider]), otherwise the viewer's UI language when
+  /// the feed has recipes in it, else "all" — so the feed is never empty just
+  /// because nobody posted in the viewer's language yet.
+  String? _effectiveLanguage(
+    ContentLanguagePref pref,
+    List<String> available,
+  ) {
+    if (pref.chosen) return pref.language;
     final viewerLang = ref.read(localeControllerProvider).languageCode;
     return available.contains(viewerLang) ? viewerLang : null;
   }
@@ -42,11 +40,13 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
     final l10n = AppLocalizations.of(context);
     final recipesAsync = ref.watch(visiblePublicRecipesProvider);
     final allRecipes = recipesAsync.value ?? const <Recipe>[];
+    final languagePref = ref.watch(contentLanguageProvider);
 
     // Distinct languages present in the feed, for the filter chips.
     final availableLanguages = allRecipes.map((r) => r.language).toSet().toList()
       ..sort();
-    final effectiveLanguage = _effectiveLanguage(availableLanguages);
+    final effectiveLanguage =
+        _effectiveLanguage(languagePref, availableLanguages);
 
     return Scaffold(
       appBar: AppBar(
@@ -78,14 +78,12 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
               ),
             ),
           ),
-          if (availableLanguages.length > 1)
+          if (availableLanguages.isNotEmpty)
             _LanguageFilterBar(
               languages: availableLanguages,
               selected: effectiveLanguage,
-              onSelected: (code) => setState(() {
-                _userChoseLanguage = true;
-                _languageFilter = code;
-              }),
+              onSelected: (code) =>
+                  ref.read(contentLanguageProvider.notifier).setLanguage(code),
             ),
           Expanded(
             child: recipesAsync.when(

@@ -156,6 +156,47 @@ boil the pasta for ten minutes.
       expect(result.steps.every((s) => RegExp(r'[.!?]$').hasMatch(s)), isTrue);
     });
 
+    test('segments a run-on paragraph description into steps', () async {
+      // A real caption pasted as one long, barely-punctuated block: an intro
+      // hook, the recipe, then an outro shout-out.
+      const desc =
+          "the best recipe of the year we finally made it for the last time "
+          "I'm cooking the top 50 New York Times recipes of 2025 this is "
+          "smashed beef kabobs for the sauce yogurt grated cucumber chopped "
+          "mint and grated garlic mix well and let it chill to another bowl "
+          "add in beef grated onion turmeric salt and lots of black pepper and "
+          "mix again get a cast iron pan ripping hot and add in your beef "
+          "mixture piece by piece this lets it get nice and crispy once it can "
+          "release naturally break it all up and add in walnuts and cranberries "
+          "then let everything finish cooking add some salt to the yogurt from "
+          "earlier and shout out to Zaynab ISA for this amazing recipe.";
+
+      // No AI needed — the heuristic segmenter should carry this.
+      final fake = _FakeAi((_) => null);
+      final result = await RecipeImportService(
+        'https://www.tiktok.com/@chef/video/123',
+        client: _router(_tiktokPage(desc)),
+        aiParser: fake.call,
+      ).call();
+
+      // Broken into several steps rather than one giant blob.
+      expect(result.steps.length, greaterThan(3));
+      // Intro hook and outro call-to-action are gone.
+      expect(
+          result.steps.any((s) => s.toLowerCase().contains('recipe of the year')),
+          isFalse);
+      expect(result.steps.any((s) => s.toLowerCase().contains('shout out')),
+          isFalse);
+      // The real cooking actions survive.
+      expect(result.steps.any((s) => s.toLowerCase().contains('for the sauce')),
+          isTrue);
+      expect(
+          result.steps.any((s) => s.toLowerCase().contains('cast iron pan')),
+          isTrue);
+      // Best-effort dish name pulled from "this is …".
+      expect(result.title, 'Smashed beef kabobs');
+    });
+
     test('never throws; degrades to a watch-the-video step', () async {
       const desc = 'just vibes ✨ #foodtok';
       final result = await RecipeImportService(
@@ -234,6 +275,58 @@ melt some butter in a pan
       expect(fake.calls, 1);
       expect(fake.lastInput, contains('dinner idea'));
       expect(fake.lastInput, contains('melt some butter'));
+    });
+
+    test('prefers the AI over noisy transcript heuristics', () async {
+      // A chatty spoken transcript: the heuristics mine plenty of junk from it
+      // ("a cup because that", "what's next?"), so the AI's clean parse should
+      // win even though the heuristics produced *some* output.
+      const desc = 'black bean brownies 🍫 #healthy';
+      const vtt = '''
+WEBVTT
+
+00:00:00.000 --> 00:00:05.000
+we're gonna make some black bean brownies these are healthy and delicious.
+
+00:00:05.000 --> 00:00:09.000
+one full cup drained and rinsed of black beans a cup because that's plenty.
+
+00:00:09.000 --> 00:00:12.000
+half a cup of oats going in what's next?
+''';
+
+      final fake = _FakeAi((_) => const AiParsedRecipe(
+            title: 'Black Bean Brownies',
+            ingredients: [
+              '1 can black beans, drained',
+              '1/2 cup oats',
+              '1/4 cup cocoa',
+            ],
+            steps: ['Blend the black beans', 'Add the oats and cocoa'],
+          ));
+
+      final result = await RecipeImportService(
+        'https://www.tiktok.com/@chef/video/123',
+        client: _router(
+          _tiktokPage(desc, subtitles: [
+            {'url': 'https://v16.tiktokcdn.com/captions.vtt'},
+          ]),
+          vtt: vtt,
+        ),
+        aiParser: fake.call,
+      ).call();
+
+      // The AI ran and its clean output replaced the junk heuristic parse.
+      expect(fake.calls, 1);
+      expect(result.title, 'Black Bean Brownies');
+      expect(result.ingredients.length, 3);
+      expect(result.ingredients.any((i) => i.toLowerCase().contains('oats')),
+          isTrue);
+      // No mis-detected "a cup because…" fragments survive.
+      expect(result.ingredients.any((i) => i.toLowerCase().contains('because')),
+          isFalse);
+      expect(result.steps.length, 2);
+      expect(result.steps.first, 'Blend the black beans.');
     });
 
     test('degrades gracefully when the AI returns null', () async {

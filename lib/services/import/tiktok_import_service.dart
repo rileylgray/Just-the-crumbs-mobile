@@ -57,8 +57,16 @@ class TiktokImportService {
     var ingredients = fromDesc.ingredients;
     var steps = fromDesc.steps;
 
+    // A well-formed description (real ingredients *and* steps) is trusted as-is;
+    // anything short of that is low-confidence and may be replaced below.
+    final descHadRecipe = ingredients.length >= 2 && steps.isNotEmpty;
+
     // 2. Fall back to the subtitles for anything the description didn't provide.
+    //    Track that we did, because a transcript's heuristic parse is noisy
+    //    (conversational filler in the steps, mis-detected "a cup" ingredients),
+    //    so we let the AI clean it up below even though it produced *some* output.
     String? transcript;
+    var usedTranscript = false;
     if (_isWeak(ingredients, steps) && meta.subtitleUrls.isNotEmpty) {
       transcript = await _fetchTranscript(meta.subtitleUrls);
       if (transcript != null) {
@@ -66,30 +74,34 @@ class TiktokImportService {
         if (ingredients.length < 2 &&
             fromSubs.ingredients.length > ingredients.length) {
           ingredients = fromSubs.ingredients;
+          usedTranscript = true;
         }
         if (steps.isEmpty && fromSubs.steps.isNotEmpty) {
           steps = fromSubs.steps;
+          usedTranscript = true;
         }
       }
     }
 
-    // 3. Last resort: let the AI untangle the raw caption + transcript. Only
-    //    runs when the heuristics still fell short, so most imports never reach
-    //    it (keeping call volume inside the free tier). Degrades silently.
-    if (_isWeak(ingredients, steps)) {
-      // Whether the heuristics found a real recipe (vs. just a caption-derived
-      // title guess) decides if the AI's title should override.
-      final hadRealContent = ingredients.length >= 2 || steps.isNotEmpty;
+    // 3. Let the AI untangle the raw caption + transcript. It runs when the
+    //    heuristics fell short *or* when the recipe came from a spoken
+    //    transcript (whose heuristic parse is unreliable). Structured
+    //    descriptions skip it, so most imports never spend a call — keeping
+    //    volume inside the free tier. Degrades silently.
+    if (_isWeak(ingredients, steps) || usedTranscript) {
       final ai = await _aiParser(_rawForAi(meta.description, transcript));
       if (ai != null) {
-        if ((_isFallbackTitle(title) || !hadRealContent) &&
+        if ((_isFallbackTitle(title) || !descHadRecipe) &&
             ai.title.isNotEmpty) {
           title = _capitalize(_baseClean(ai.title));
         }
-        if (ingredients.length < 2 && ai.ingredients.length >= 2) {
+        // Transcript-derived heuristics are noisy, so the AI may replace them
+        // wholesale; trusted description results are only *filled in*.
+        if ((ingredients.length < 2 || usedTranscript) &&
+            ai.ingredients.length >= 2) {
           ingredients = _finalizeIngredients(ai.ingredients);
         }
-        if (steps.isEmpty && ai.steps.isNotEmpty) {
+        if ((steps.isEmpty || usedTranscript) && ai.steps.isNotEmpty) {
           steps = _finalizeSteps(ai.steps);
         }
       }
@@ -236,7 +248,61 @@ class TiktokImportService {
     final (ingRaw, stepRaw) = _splitSections(lines, titleIdx);
     final ingredients = _finalizeIngredients(ingRaw);
     final steps = _finalizeSteps(stepRaw);
+
+    // An unstructured caption — one run-on paragraph with no headers or bullets
+    // — leaves the line classifier with nothing (it all became the "title").
+    // Treat it as prose so we still get real steps instead of one giant blob.
+    if (steps.isEmpty || (steps.length == 1 && _looksLikeProse(steps.first))) {
+      final prose = _parseFromProse(text, creator);
+      if (prose.steps.length > steps.length &&
+          _looksLikeRecipeProse(prose.steps)) {
+        return prose;
+      }
+    }
     return _ParsedRecipe(title, ingredients, steps);
+  }
+
+  /// Guards the prose fallback: a genuine recipe reads as several cooking
+  /// actions, so accept it only when at least two segments carry a cooking
+  /// verb. A rambly non-recipe caption ("the best dinner, follow for more")
+  /// won't clear this bar and is left to the AI / watch-the-video fallback.
+  bool _looksLikeRecipeProse(List<String> steps) {
+    if (steps.length < 2) return false;
+    final withVerb = steps.where((s) {
+      return s
+          .split(RegExp(r'\s+'))
+          .any((w) => _isStepStartVerb(_wordToken(w)));
+    }).length;
+    return withVerb >= 2;
+  }
+
+  /// Parses a run-on caption as prose: segment the steps, pull any quantity-led
+  /// ingredients out of the same text, and take a best-effort dish name.
+  _ParsedRecipe _parseFromProse(String text, String? creator) {
+    final flat = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final steps = _finalizeSteps(_segmentProse(flat));
+    final ingredients = _finalizeIngredients(_ingredientsFromProse(flat));
+    return _ParsedRecipe(
+      _titleFromProse(flat) ?? _fallbackTitle(creator),
+      ingredients,
+      steps,
+    );
+  }
+
+  /// Best-effort dish name from spoken prose: the noun phrase a creator names
+  /// right after "this is …" / "how to make …", stopping at the first cue that
+  /// starts the actual recipe.
+  String? _titleFromProse(String text) {
+    final m = RegExp(
+      r"\b(?:this is|here'?s how to make|how to make|making|recipe for|"
+      r"today (?:i'?m|we'?re) making)\s+(.{3,60}?)"
+      r"(?=\s+(?:for the|and|then|so|to another|in another|add|mix|get|grab|"
+      r"once|first)\b|[.!?]|$)",
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (m == null) return null;
+    final raw = _baseClean(m.group(1)!);
+    return raw.isEmpty ? null : _capitalize(raw);
   }
 
   /// Splits the description lines into raw ingredient lines and raw step lines,
@@ -397,7 +463,42 @@ class TiktokImportService {
       r'(?:\s+of)?\s+\w+(?:\s+\w+){0,2})',
       caseSensitive: false,
     );
-    return re.allMatches(text).map((m) => m.group(0)!).toList();
+    final out = <String>[];
+    for (final m in re.allMatches(text)) {
+      final cleaned = _cleanProseIngredient(m.group(0)!);
+      if (cleaned != null) out.add(cleaned);
+    }
+    return out;
+  }
+
+  /// The prose ingredient regex is greedy about the words around the unit, so a
+  /// verbal tic like "a cup, it always flies up" matches as if it were an
+  /// ingredient. Reject a match whose head noun (or a word wedged between the
+  /// quantity and the unit) is filler speech, and trim trailing filler off the
+  /// good ones ("half a cup of maple syrup that" → "half a cup of maple syrup").
+  String? _cleanProseIngredient(String phrase) {
+    final words =
+        phrase.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final unitIdx = words.indexWhere((w) => _unit.hasMatch(w));
+    if (unitIdx < 0) return null;
+
+    // Filler wedged between the quantity and the unit ("a do my teaspoon…").
+    for (var i = 1; i < unitIdx; i++) {
+      if (_ingredientNoise.contains(_wordToken(words[i]))) return null;
+    }
+
+    // The head noun sits just after the unit (skipping a linking "of").
+    var nounIdx = unitIdx + 1;
+    if (nounIdx < words.length && _wordToken(words[nounIdx]) == 'of') nounIdx++;
+    if (nounIdx >= words.length) return null;
+    if (_ingredientNoise.contains(_wordToken(words[nounIdx]))) return null;
+
+    var end = words.length;
+    while (end > nounIdx + 1 &&
+        _ingredientNoise.contains(_wordToken(words[end - 1]))) {
+      end--;
+    }
+    return words.sublist(0, end).join(' ');
   }
 
   /// Turns a transcript (or any run-on block of prose) into readable steps.
@@ -805,6 +906,16 @@ class TiktokImportService {
   static const _containers = {
     'bowl', 'pan', 'pot', 'skillet', 'dish', 'tray', 'plate', 'sheet', 'mixer',
     'blender', 'processor', 'saucepan', 'jar', 'glass', 'cup', 'wok', 'container',
+  };
+
+  /// Filler/speech words that shouldn't sit where an ingredient name belongs;
+  /// used to reject or trim mis-detected "a cup …" transcript ingredients.
+  static const _ingredientNoise = {
+    'the', 'and', 'or', 'but', 'so', 'because', 'it', 'its', 'i', 'im', 'my',
+    'we', 'your', 'that', 'this', 'there', 'right', 'going', 'actually', 'do',
+    'not', 'is', 'was', 'will', 'been', 'what', 'next', 'here', 'just', 'um',
+    'uh', 'like', 'gonna', 'currently', 'of', 'to', 'in', 'on', 'up', 'well',
+    'again',
   };
 
   static final _introChatter = RegExp(

@@ -7,6 +7,8 @@
   "navDiscover": "Descubrir",
   "navProfile": "Perfil",
 
+  "offlineBanner": "Estás sin conexión: viendo recetas guardadas",
+
   "actionCancel": "Cancelar",
   "actionDelete": "Eliminar",
   "actionSave": "Guardar",
@@ -33,6 +35,12 @@
   "profileDeleteFailed": "No se pudo eliminar la cuenta: {error}",
   "profileLanguage": "Idioma",
   "languagePickerTitle": "Elige un idioma",
+
+  "profileEditName": "Editar nombre visible",
+  "profileEditNameTitle": "Nombre visible",
+  "profileEditNameBody": "Este es el nombre que aparece en las recetas que compartes y en el feed público.",
+  "profileDisplayNameLabel": "Nombre visible",
+  "profileNameUpdated": "Nombre visible actualizado",
 
   "recipesAddRecipe": "Añadir receta",
   "recipesSearch": "Buscar recetas",

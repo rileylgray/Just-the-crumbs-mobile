@@ -21,6 +21,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get navProfile => 'Profil';
 
   @override
+  String get offlineBanner => 'Vous êtes hors ligne — recettes enregistrées';
+
+  @override
   String get actionCancel => 'Annuler';
 
   @override
@@ -114,6 +117,22 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get languagePickerTitle => 'Choisir une langue';
+
+  @override
+  String get profileEditName => 'Modifier le nom affiché';
+
+  @override
+  String get profileEditNameTitle => 'Nom affiché';
+
+  @override
+  String get profileEditNameBody =>
+      'C\'est le nom affiché sur les recettes que vous partagez et dans le fil public.';
+
+  @override
+  String get profileDisplayNameLabel => 'Nom affiché';
+
+  @override
+  String get profileNameUpdated => 'Nom affiché mis à jour';
 
   @override
   String get recipesAddRecipe => 'Ajouter une recette';

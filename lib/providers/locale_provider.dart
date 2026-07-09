@@ -74,3 +74,53 @@ class LocaleController extends Notifier<Locale> {
 final localeControllerProvider = NotifierProvider<LocaleController, Locale>(
   LocaleController.new,
 );
+
+/// The viewer's persisted content-language preference for the Discover feed.
+///
+/// [chosen] is false until the user first taps a language chip; while false the
+/// feed falls back to the viewer's UI language (see the feed's effective-language
+/// logic). Once [chosen], [language] is the explicit selection — `null` meaning
+/// "All languages".
+class ContentLanguagePref {
+  const ContentLanguagePref({required this.chosen, required this.language});
+
+  /// The initial state before the user has ever picked a language.
+  static const unset = ContentLanguagePref(chosen: false, language: null);
+
+  final bool chosen;
+  final String? language;
+}
+
+/// Persists the Discover feed's content-language filter across restarts.
+///
+/// Stored as a single string under [_prefsKey]: absent means "never chosen",
+/// [_allSentinel] means the user explicitly picked "All languages", and any
+/// other value is a BCP-47 language code.
+class ContentLanguageController extends Notifier<ContentLanguagePref> {
+  static const _prefsKey = 'public_content_language';
+  static const _allSentinel = '__all__';
+
+  @override
+  ContentLanguagePref build() {
+    final raw = ref.watch(sharedPreferencesProvider).getString(_prefsKey);
+    if (raw == null) return ContentLanguagePref.unset;
+    if (raw == _allSentinel) {
+      return const ContentLanguagePref(chosen: true, language: null);
+    }
+    return ContentLanguagePref(chosen: true, language: raw);
+  }
+
+  /// Selects [code] (`null` for "All languages") and persists it.
+  Future<void> setLanguage(String? code) async {
+    await ref.read(sharedPreferencesProvider).setString(
+          _prefsKey,
+          code ?? _allSentinel,
+        );
+    state = ContentLanguagePref(chosen: true, language: code);
+  }
+}
+
+final contentLanguageProvider =
+    NotifierProvider<ContentLanguageController, ContentLanguagePref>(
+  ContentLanguageController.new,
+);

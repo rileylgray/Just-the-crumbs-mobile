@@ -7,6 +7,8 @@
   "navDiscover": "Entdecken",
   "navProfile": "Profil",
 
+  "offlineBanner": "Offline – gespeicherte Rezepte werden angezeigt",
+
   "actionCancel": "Abbrechen",
   "actionDelete": "Löschen",
   "actionSave": "Speichern",
@@ -33,6 +35,12 @@
   "profileDeleteFailed": "Konto konnte nicht gelöscht werden: {error}",
   "profileLanguage": "Sprache",
   "languagePickerTitle": "Sprache auswählen",
+
+  "profileEditName": "Anzeigenamen bearbeiten",
+  "profileEditNameTitle": "Anzeigename",
+  "profileEditNameBody": "Dieser Name wird bei geteilten Rezepten und im öffentlichen Feed angezeigt.",
+  "profileDisplayNameLabel": "Anzeigename",
+  "profileNameUpdated": "Anzeigename aktualisiert",
 
   "recipesAddRecipe": "Rezept hinzufügen",
   "recipesSearch": "Rezepte suchen",

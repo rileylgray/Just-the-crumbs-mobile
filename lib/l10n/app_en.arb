@@ -8,6 +8,8 @@
   "navDiscover": "Discover",
   "navProfile": "Profile",
 
+  "offlineBanner": "You're offline — viewing saved recipes",
+
   "actionCancel": "Cancel",
   "actionDelete": "Delete",
   "actionSave": "Save",
@@ -46,6 +48,12 @@
   },
   "profileLanguage": "Language",
   "languagePickerTitle": "Choose a language",
+
+  "profileEditName": "Edit display name",
+  "profileEditNameTitle": "Display name",
+  "profileEditNameBody": "This is the name shown on recipes you share and on the public feed.",
+  "profileDisplayNameLabel": "Display name",
+  "profileNameUpdated": "Display name updated",
 
   "recipesAddRecipe": "Add recipe",
   "recipesSearch": "Search recipes",

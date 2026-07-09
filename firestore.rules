@@ -32,6 +32,7 @@ service cloud.firestore {
                         .data.public == true;
 
         allow create: if signedIn()
+                      && request.resource.data.userId == request.auth.uid
                       && get(/databases/$(database)/documents/recipes/$(recipeId))
                           .data.public == true
                       && request.resource.data.content is string

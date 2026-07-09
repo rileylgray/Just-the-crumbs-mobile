@@ -21,6 +21,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get navProfile => 'Perfil';
 
   @override
+  String get offlineBanner => 'Estás sin conexión: viendo recetas guardadas';
+
+  @override
   String get actionCancel => 'Cancelar';
 
   @override
@@ -113,6 +116,22 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get languagePickerTitle => 'Elige un idioma';
+
+  @override
+  String get profileEditName => 'Editar nombre visible';
+
+  @override
+  String get profileEditNameTitle => 'Nombre visible';
+
+  @override
+  String get profileEditNameBody =>
+      'Este es el nombre que aparece en las recetas que compartes y en el feed público.';
+
+  @override
+  String get profileDisplayNameLabel => 'Nombre visible';
+
+  @override
+  String get profileNameUpdated => 'Nombre visible actualizado';
 
   @override
   String get recipesAddRecipe => 'Añadir receta';

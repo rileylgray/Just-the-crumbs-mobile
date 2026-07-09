@@ -7,6 +7,8 @@
   "navDiscover": "Découvrir",
   "navProfile": "Profil",
 
+  "offlineBanner": "Vous êtes hors ligne — recettes enregistrées",
+
   "actionCancel": "Annuler",
   "actionDelete": "Supprimer",
   "actionSave": "Enregistrer",
@@ -33,6 +35,12 @@
   "profileDeleteFailed": "Impossible de supprimer le compte : {error}",
   "profileLanguage": "Langue",
   "languagePickerTitle": "Choisir une langue",
+
+  "profileEditName": "Modifier le nom affiché",
+  "profileEditNameTitle": "Nom affiché",
+  "profileEditNameBody": "C'est le nom affiché sur les recettes que vous partagez et dans le fil public.",
+  "profileDisplayNameLabel": "Nom affiché",
+  "profileNameUpdated": "Nom affiché mis à jour",
 
   "recipesAddRecipe": "Ajouter une recette",
   "recipesSearch": "Rechercher des recettes",

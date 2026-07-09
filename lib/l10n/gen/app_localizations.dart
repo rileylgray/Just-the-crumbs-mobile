@@ -130,6 +130,12 @@ abstract class AppLocalizations {
   /// **'Profile'**
   String get navProfile;
 
+  /// No description provided for @offlineBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline — viewing saved recipes'**
+  String get offlineBanner;
+
   /// No description provided for @actionCancel.
   ///
   /// In en, this message translates to:
@@ -279,6 +285,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose a language'**
   String get languagePickerTitle;
+
+  /// No description provided for @profileEditName.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit display name'**
+  String get profileEditName;
+
+  /// No description provided for @profileEditNameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name'**
+  String get profileEditNameTitle;
+
+  /// No description provided for @profileEditNameBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This is the name shown on recipes you share and on the public feed.'**
+  String get profileEditNameBody;
+
+  /// No description provided for @profileDisplayNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name'**
+  String get profileDisplayNameLabel;
+
+  /// No description provided for @profileNameUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name updated'**
+  String get profileNameUpdated;
 
   /// No description provided for @recipesAddRecipe.
   ///

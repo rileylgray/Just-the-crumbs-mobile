@@ -142,14 +142,12 @@ class _CommentsSection extends ConsumerStatefulWidget {
 
 class _CommentsSectionState extends ConsumerState<_CommentsSection> {
   final _content = TextEditingController();
-  final _authorName = TextEditingController();
   bool _anonymous = false;
   bool _sending = false;
 
   @override
   void dispose() {
     _content.dispose();
-    _authorName.dispose();
     super.dispose();
   }
 
@@ -166,10 +164,9 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
     String authorName;
     bool anonymous;
     if (isGuest) {
-      authorName = _authorName.text.trim().isEmpty
-          ? 'Anonymous'
-          : _authorName.text.trim();
-      anonymous = false; // guests use the name field
+      // Guests can't set a name, so their comments are always anonymous.
+      authorName = 'Anonymous';
+      anonymous = true;
     } else {
       anonymous = _anonymous;
       authorName = _anonymous ? 'Anonymous' : profileName;
@@ -179,7 +176,10 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
       await ref.read(commentRepositoryProvider).addComment(
             recipeId: widget.recipeId,
             content: text,
-            userId: isGuest ? null : uid,
+            // Store the uid even for guests (anonymous auth still has a stable
+            // uid) so they can delete their own comments. The `anonymous` flag
+            // keeps the name hidden in the UI.
+            userId: uid,
             authorName: authorName,
             anonymous: anonymous,
           );
@@ -214,17 +214,6 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
                 fontWeight: FontWeight.bold,
                 color: AppColors.primaryDark)),
         const SizedBox(height: 12),
-        if (isGuest)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: TextField(
-              controller: _authorName,
-              decoration: InputDecoration(
-                labelText: l10n.commentYourNameOptional,
-                isDense: true,
-              ),
-            ),
-          ),
         TextField(
           controller: _content,
           minLines: 1,

@@ -21,6 +21,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get navProfile => 'Perfil';
 
   @override
+  String get offlineBanner => 'Você está offline — vendo receitas salvas';
+
+  @override
   String get actionCancel => 'Cancelar';
 
   @override
@@ -113,6 +116,22 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get languagePickerTitle => 'Escolha um idioma';
+
+  @override
+  String get profileEditName => 'Editar nome de exibição';
+
+  @override
+  String get profileEditNameTitle => 'Nome de exibição';
+
+  @override
+  String get profileEditNameBody =>
+      'Este é o nome exibido nas receitas que você compartilha e no feed público.';
+
+  @override
+  String get profileDisplayNameLabel => 'Nome de exibição';
+
+  @override
+  String get profileNameUpdated => 'Nome de exibição atualizado';
 
   @override
   String get recipesAddRecipe => 'Adicionar receita';
