@@ -65,7 +65,10 @@ class SharedRecipeScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final uid = ref.read(currentUidProvider);
     if (uid == null) return;
-    final authorName = ref.read(currentAuthorNameProvider);
+    // Await the profile so a cold read doesn't fall back to 'Guest' for a
+    // signed-in user.
+    final profile = await ref.read(currentAppUserProvider.future);
+    final authorName = profile?.name ?? 'Guest';
     final id = await ref
         .read(recipeRepositoryProvider)
         .copyRecipe(source: recipe, uid: uid, authorName: authorName);

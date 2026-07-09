@@ -110,8 +110,12 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
         }
       } else {
         final uid = ref.read(currentUidProvider);
-        final authorName = ref.read(currentAuthorNameProvider);
         if (uid == null) return;
+        // Await the profile so a cold read of the Firestore stream doesn't
+        // fall back to 'Guest' for a signed-in user (e.g. straight after an
+        // import, where no earlier screen has warmed the profile provider).
+        final profile = await ref.read(currentAppUserProvider.future);
+        final authorName = profile?.name ?? 'Guest';
         final id = await repo.createRecipe(
           uid: uid,
           authorName: authorName,

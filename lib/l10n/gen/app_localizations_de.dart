@@ -42,6 +42,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get actionUndo => 'Rückgängig';
 
   @override
+  String get actionContinue => 'Weiter';
+
+  @override
   String get tooltipShare => 'Teilen';
 
   @override
@@ -75,6 +78,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String profileSignInFailed(String error) {
     return 'Anmeldung fehlgeschlagen: $error';
   }
+
+  @override
+  String get profileSignInInfoTitle => 'Bevor du dich anmeldest';
+
+  @override
+  String get profileSignInInfoBody =>
+      'Wenn du dich mit Google anmeldest, werden die als Gast erstellten Rezepte mit deinem Konto verknüpft, sodass du sie auf jedem Gerät öffnen kannst.\n\nGast-Rezepte sind nur auf diesem Telefon gespeichert, bis du dich anmeldest – melde dich also hier an, bevor du auf ein neues Telefon wechselst, sonst werden sie nicht übernommen.';
 
   @override
   String get profileGuestCardTitle => 'Du bist als Gast unterwegs';

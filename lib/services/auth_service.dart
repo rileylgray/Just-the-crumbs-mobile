@@ -78,13 +78,17 @@ class AuthService {
     }
 
     final user = result.user!;
-    await _writeGoogleProfile(user, googleUser);
+    final name = await _writeGoogleProfile(user, googleUser);
+    // A guest's recipes were denormalized with the placeholder 'Guest' name;
+    // now that they've a real identity, refresh those to the real name.
+    await _backfillAuthorName(user.uid, name);
     return user;
   }
 
   /// Updates the current user's display name — the name shown on the public
-  /// feed and denormalized onto recipes they share. Recipes already created
-  /// keep the name captured at the time; new ones pick up the new name.
+  /// feed and denormalized onto recipes and shares they've authored. The new
+  /// name is propagated onto everything they've already created so their
+  /// authorship stays consistent (see [_backfillAuthorName]).
   Future<void> updateDisplayName(String name) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -92,6 +96,7 @@ class AuthService {
     if (trimmed.isEmpty) return;
     await _users.doc(user.uid).set({'name': trimmed}, SetOptions(merge: true));
     await user.updateDisplayName(trimmed);
+    await _backfillAuthorName(user.uid, trimmed);
   }
 
   Future<void> signOut() async {
@@ -217,13 +222,51 @@ class AuthService {
     }
   }
 
-  Future<void> _writeGoogleProfile(User user, GoogleSignInAccount account) async {
+  /// Writes the Google profile and returns the display name it stored.
+  Future<String> _writeGoogleProfile(User user, GoogleSignInAccount account) async {
+    final name = account.displayName ?? user.displayName ?? 'Cook';
     await _users.doc(user.uid).set({
-      'name': account.displayName ?? user.displayName ?? 'Cook',
+      'name': name,
       'email': account.email,
       'photoUrl': user.photoURL,
       'isGuest': false,
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    return name;
+  }
+
+  /// Propagates a display-name change onto the denormalized `authorName` field
+  /// of everything [uid] has authored: their recipes and their share snapshots.
+  ///
+  /// Called when a guest links a real account (so recipes stamped with the
+  /// placeholder 'Guest' pick up the real name) and when a user renames
+  /// themselves. Only documents whose stored name actually differs are written.
+  ///
+  /// Comments are intentionally left untouched: guest and anonymous comments
+  /// always render as "Anonymous" regardless of the stored name, and the
+  /// Firestore rules don't permit updating comment documents from the client.
+  Future<void> _backfillAuthorName(String uid, String name) async {
+    final refs = <DocumentReference<Map<String, dynamic>>>[];
+
+    final recipes = await _recipes.where('userId', isEqualTo: uid).get();
+    refs.addAll(recipes.docs
+        .where((d) => d.data()['authorName'] != name)
+        .map((d) => d.reference));
+
+    final shares =
+        await _db.collection('shares').where('userId', isEqualTo: uid).get();
+    refs.addAll(shares.docs
+        .where((d) => d.data()['authorName'] != name)
+        .map((d) => d.reference));
+
+    const chunkSize = 400;
+    for (var i = 0; i < refs.length; i += chunkSize) {
+      final end = (i + chunkSize < refs.length) ? i + chunkSize : refs.length;
+      final batch = _db.batch();
+      for (final ref in refs.sublist(i, end)) {
+        batch.update(ref, {'authorName': name});
+      }
+      await batch.commit();
+    }
   }
 }

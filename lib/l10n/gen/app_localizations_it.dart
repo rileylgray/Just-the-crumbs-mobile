@@ -43,6 +43,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get actionUndo => 'Annulla';
 
   @override
+  String get actionContinue => 'Continua';
+
+  @override
   String get tooltipShare => 'Condividi';
 
   @override
@@ -76,6 +79,13 @@ class AppLocalizationsIt extends AppLocalizations {
   String profileSignInFailed(String error) {
     return 'Accesso non riuscito: $error';
   }
+
+  @override
+  String get profileSignInInfoTitle => 'Prima di accedere';
+
+  @override
+  String get profileSignInInfoBody =>
+      'Accedendo con Google, le ricette che hai creato come ospite vengono collegate al tuo account, così puoi aprirle da qualsiasi dispositivo.\n\nLe ricette da ospite esistono solo su questo telefono finché non accedi: accedi qui prima di passare a un nuovo telefono, altrimenti non verranno mantenute.';
 
   @override
   String get profileGuestCardTitle => 'Stai navigando come ospite';

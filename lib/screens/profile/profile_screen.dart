@@ -19,6 +19,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _signInWithGoogle() async {
     final l10n = AppLocalizations.of(context);
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.profileSignInInfoTitle),
+        content: Text(l10n.profileSignInInfoBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.actionCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.actionContinue),
+          ),
+        ],
+      ),
+    );
+    if (proceed != true || !mounted) return;
+
     setState(() => _busy = true);
     try {
       await ref.read(authServiceProvider).signInWithGoogle();

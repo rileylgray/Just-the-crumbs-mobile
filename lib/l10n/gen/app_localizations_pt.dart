@@ -42,6 +42,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get actionUndo => 'Desfazer';
 
   @override
+  String get actionContinue => 'Continuar';
+
+  @override
   String get tooltipShare => 'Compartilhar';
 
   @override
@@ -75,6 +78,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String profileSignInFailed(String error) {
     return 'Falha ao entrar: $error';
   }
+
+  @override
+  String get profileSignInInfoTitle => 'Antes de entrar';
+
+  @override
+  String get profileSignInInfoBody =>
+      'Ao entrar com o Google, as receitas que você criou como convidado são vinculadas à sua conta, para que você possa abri-las em qualquer dispositivo.\n\nAs receitas de convidado existem apenas neste telefone até você entrar — então entre aqui antes de trocar de telefone, ou elas não serão mantidas.';
 
   @override
   String get profileGuestCardTitle => 'Você está navegando como convidado';

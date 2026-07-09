@@ -172,6 +172,12 @@ abstract class AppLocalizations {
   /// **'Undo'**
   String get actionUndo;
 
+  /// No description provided for @actionContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get actionContinue;
+
   /// No description provided for @tooltipShare.
   ///
   /// In en, this message translates to:
@@ -213,6 +219,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign-in failed: {error}'**
   String profileSignInFailed(String error);
+
+  /// No description provided for @profileSignInInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Before you sign in'**
+  String get profileSignInInfoTitle;
+
+  /// No description provided for @profileSignInInfoBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Signing in with Google links the recipes you\'ve made as a guest to your account, so you can open them on any device.\n\nGuest recipes live only on this phone until you sign in — so sign in here before switching to a new phone, or they won\'t carry over.'**
+  String get profileSignInInfoBody;
 
   /// No description provided for @profileGuestCardTitle.
   ///

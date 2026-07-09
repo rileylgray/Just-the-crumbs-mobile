@@ -42,6 +42,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get actionUndo => 'Annuler';
 
   @override
+  String get actionContinue => 'Continuer';
+
+  @override
   String get tooltipShare => 'Partager';
 
   @override
@@ -75,6 +78,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String profileSignInFailed(String error) {
     return 'Échec de la connexion : $error';
   }
+
+  @override
+  String get profileSignInInfoTitle => 'Avant de vous connecter';
+
+  @override
+  String get profileSignInInfoBody =>
+      'En vous connectant avec Google, les recettes créées en tant qu\'invité sont associées à votre compte, pour que vous puissiez les ouvrir sur n\'importe quel appareil.\n\nLes recettes d\'invité n\'existent que sur ce téléphone jusqu\'à votre connexion — connectez-vous donc ici avant de changer de téléphone, sinon elles ne seront pas conservées.';
 
   @override
   String get profileGuestCardTitle => 'Vous naviguez en tant qu\'invité';

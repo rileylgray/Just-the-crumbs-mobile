@@ -42,6 +42,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionUndo => 'Undo';
 
   @override
+  String get actionContinue => 'Continue';
+
+  @override
   String get tooltipShare => 'Share';
 
   @override
@@ -75,6 +78,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String profileSignInFailed(String error) {
     return 'Sign-in failed: $error';
   }
+
+  @override
+  String get profileSignInInfoTitle => 'Before you sign in';
+
+  @override
+  String get profileSignInInfoBody =>
+      'Signing in with Google links the recipes you\'ve made as a guest to your account, so you can open them on any device.\n\nGuest recipes live only on this phone until you sign in — so sign in here before switching to a new phone, or they won\'t carry over.';
 
   @override
   String get profileGuestCardTitle => 'You\'re browsing as a guest';

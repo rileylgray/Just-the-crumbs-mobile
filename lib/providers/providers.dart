@@ -78,11 +78,6 @@ final currentAppUserProvider = StreamProvider<AppUser?>((ref) {
       .map((doc) => doc.exists ? AppUser.fromDoc(doc) : null);
 });
 
-/// Display name used to denormalize recipe authorship.
-final currentAuthorNameProvider = Provider<String>(
-  (ref) => ref.watch(currentAppUserProvider).value?.name ?? 'Guest',
-);
-
 // ---- Recipes ---------------------------------------------------------------
 
 final userRecipesProvider = StreamProvider<List<Recipe>>((ref) {

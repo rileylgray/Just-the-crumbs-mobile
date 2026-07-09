@@ -42,6 +42,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get actionUndo => 'Deshacer';
 
   @override
+  String get actionContinue => 'Continuar';
+
+  @override
   String get tooltipShare => 'Compartir';
 
   @override
@@ -75,6 +78,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String profileSignInFailed(String error) {
     return 'Error al iniciar sesión: $error';
   }
+
+  @override
+  String get profileSignInInfoTitle => 'Antes de iniciar sesión';
+
+  @override
+  String get profileSignInInfoBody =>
+      'Al iniciar sesión con Google, las recetas que creaste como invitado se vinculan a tu cuenta, para que puedas abrirlas en cualquier dispositivo.\n\nLas recetas de invitado solo existen en este teléfono hasta que inicies sesión, así que inicia sesión aquí antes de cambiar de teléfono o no se conservarán.';
 
   @override
   String get profileGuestCardTitle => 'Estás navegando como invitado';
