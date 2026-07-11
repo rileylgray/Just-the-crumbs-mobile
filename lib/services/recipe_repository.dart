@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -72,7 +73,15 @@ class RecipeRepository {
     required String language,
   }) async {
     final position = await _nextPosition(uid);
-    final ref = await _recipes.add({
+    // Use a locally-generated id and DON'T await the write. The Firestore SDK
+    // persists the write to its local cache immediately and syncs to the server
+    // when connectivity allows. The future returned by set() only completes on
+    // server acknowledgement, so awaiting it hangs indefinitely while offline
+    // (or on a flaky connection) even though the recipe is already saved locally
+    // and shows up in streams. See: the "create shows an endless spinner but the
+    // recipe was actually created" bug.
+    final ref = _recipes.doc();
+    unawaited(ref.set({
       'userId': uid,
       'authorName': authorName,
       'title': title,
@@ -86,7 +95,10 @@ class RecipeRepository {
       'language': language,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    }).catchError((Object _) {
+      // The write is already durably queued in the local cache; the SDK retries
+      // transient server errors on its own, so there is nothing to surface here.
+    }));
     return ref.id;
   }
 

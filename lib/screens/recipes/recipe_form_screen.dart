@@ -150,12 +150,9 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
 
     final l10n = AppLocalizations.of(context);
     final categories = ref.watch(userCategoriesProvider).value ?? const [];
-    // Offer the six UI languages, plus the recipe's own language if it's some
-    // other code (so an existing value is never dropped from the dropdown).
-    final languageCodes = <String>{
-      for (final lang in supportedLanguages) lang.locale.languageCode,
-      _language,
-    }.toList();
+    // Offer every content language (sorted by name), plus the recipe's own
+    // language if it's some other code, so an existing value is never dropped.
+    final languageCodes = contentLanguageCodes(extra: _language);
 
     return Scaffold(
       appBar: AppBar(
@@ -223,22 +220,6 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
                   InputDecoration(labelText: l10n.fieldSourceUrlOptional),
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              // Key on the value so an async edit-mode load (which updates
-              // _language after first build) refreshes the shown selection.
-              key: ValueKey(_language),
-              initialValue: _language,
-              decoration: InputDecoration(labelText: l10n.recipeLanguageLabel),
-              items: [
-                for (final code in languageCodes)
-                  DropdownMenuItem(
-                    value: code,
-                    child: Text(languageDisplayName(code)),
-                  ),
-              ],
-              onChanged: (v) => setState(() => _language = v ?? _language),
-            ),
-            const SizedBox(height: 20),
             if (categories.isNotEmpty) ...[
               Text(l10n.categoriesLabel,
                   style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -268,6 +249,27 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
               activeThumbColor: AppColors.primary,
               onChanged: (v) => setState(() => _isPublic = v),
             ),
+            // Content language only matters for public recipes (it drives the
+            // Discover feed's language filter), so it's shown only when public.
+            if (_isPublic) ...[
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                // Key on the value so an async edit-mode load (which updates
+                // _language after first build) refreshes the shown selection.
+                key: ValueKey(_language),
+                initialValue: _language,
+                decoration:
+                    InputDecoration(labelText: l10n.recipeLanguageLabel),
+                items: [
+                  for (final code in languageCodes)
+                    DropdownMenuItem(
+                      value: code,
+                      child: Text(languageDisplayName(code)),
+                    ),
+                ],
+                onChanged: (v) => setState(() => _language = v ?? _language),
+              ),
+            ],
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loading ? null : _save,

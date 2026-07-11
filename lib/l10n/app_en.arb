@@ -165,6 +165,8 @@
   },
   "ingredientsTitle": "Ingredients",
   "stepsTitle": "Steps",
+  "cookMode": "Cook mode",
+  "cookModeOnHint": "Larger text, screen stays on",
   "recipeSource": "Source: {url}",
   "@recipeSource": {
     "placeholders": { "url": { "type": "String" } }

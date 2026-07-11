@@ -422,6 +422,12 @@ class AppLocalizationsIt extends AppLocalizations {
   String get stepsTitle => 'Passaggi';
 
   @override
+  String get cookMode => 'Modalità cucina';
+
+  @override
+  String get cookModeOnHint => 'Testo più grande, lo schermo resta acceso';
+
+  @override
   String recipeSource(String url) {
     return 'Fonte: $url';
   }

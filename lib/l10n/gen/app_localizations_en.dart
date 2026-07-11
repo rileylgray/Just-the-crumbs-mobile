@@ -416,6 +416,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stepsTitle => 'Steps';
 
   @override
+  String get cookMode => 'Cook mode';
+
+  @override
+  String get cookModeOnHint => 'Larger text, screen stays on';
+
+  @override
   String recipeSource(String url) {
     return 'Source: $url';
   }

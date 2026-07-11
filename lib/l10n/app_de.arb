@@ -140,6 +140,8 @@
   "recipeByAuthor": "von {author}",
   "ingredientsTitle": "Zutaten",
   "stepsTitle": "Schritte",
+  "cookMode": "Kochmodus",
+  "cookModeOnHint": "Größere Schrift, Bildschirm bleibt an",
   "recipeSource": "Quelle: {url}",
   "ingredientsCount": "{count, plural, =1{1 Zutat} other{{count} Zutaten}}",
   "stepsCount": "{count, plural, =1{1 Schritt} other{{count} Schritte}}",

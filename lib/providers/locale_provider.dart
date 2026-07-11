@@ -24,16 +24,123 @@ const supportedLanguages = <AppLanguage>[
   AppLanguage(Locale('it'), 'Italiano'),
 ];
 
+/// Endonyms for *content* language selection. Recipe content can be authored in
+/// any language — not only the six the UI ships in ([supportedLanguages]) — so
+/// the recipe editor's language picker and the Discover badges draw their names
+/// from this far broader list. Names are endonyms (each in its own language),
+/// the convention for a language picker, and stay stable regardless of the
+/// active UI locale.
+const contentLanguages = <AppLanguage>[
+  AppLanguage(Locale('af'), 'Afrikaans'),
+  AppLanguage(Locale('sq'), 'Shqip'),
+  AppLanguage(Locale('am'), 'አማርኛ'),
+  AppLanguage(Locale('ar'), 'العربية'),
+  AppLanguage(Locale('hy'), 'Հայերեն'),
+  AppLanguage(Locale('az'), 'Azərbaycan'),
+  AppLanguage(Locale('eu'), 'Euskara'),
+  AppLanguage(Locale('be'), 'Беларуская'),
+  AppLanguage(Locale('bn'), 'বাংলা'),
+  AppLanguage(Locale('bs'), 'Bosanski'),
+  AppLanguage(Locale('bg'), 'Български'),
+  AppLanguage(Locale('ca'), 'Català'),
+  AppLanguage(Locale('zh'), '中文'),
+  AppLanguage(Locale('hr'), 'Hrvatski'),
+  AppLanguage(Locale('cs'), 'Čeština'),
+  AppLanguage(Locale('da'), 'Dansk'),
+  AppLanguage(Locale('nl'), 'Nederlands'),
+  AppLanguage(Locale('en'), 'English'),
+  AppLanguage(Locale('et'), 'Eesti'),
+  AppLanguage(Locale('fil'), 'Filipino'),
+  AppLanguage(Locale('fi'), 'Suomi'),
+  AppLanguage(Locale('fr'), 'Français'),
+  AppLanguage(Locale('gl'), 'Galego'),
+  AppLanguage(Locale('ka'), 'ქართული'),
+  AppLanguage(Locale('de'), 'Deutsch'),
+  AppLanguage(Locale('el'), 'Ελληνικά'),
+  AppLanguage(Locale('gu'), 'ગુજરાતી'),
+  AppLanguage(Locale('he'), 'עברית'),
+  AppLanguage(Locale('hi'), 'हिन्दी'),
+  AppLanguage(Locale('hu'), 'Magyar'),
+  AppLanguage(Locale('is'), 'Íslenska'),
+  AppLanguage(Locale('id'), 'Indonesia'),
+  AppLanguage(Locale('ga'), 'Gaeilge'),
+  AppLanguage(Locale('it'), 'Italiano'),
+  AppLanguage(Locale('ja'), '日本語'),
+  AppLanguage(Locale('kn'), 'ಕನ್ನಡ'),
+  AppLanguage(Locale('kk'), 'Қазақ'),
+  AppLanguage(Locale('km'), 'ខ្មែរ'),
+  AppLanguage(Locale('ko'), '한국어'),
+  AppLanguage(Locale('ku'), 'Kurdî'),
+  AppLanguage(Locale('lo'), 'ລາວ'),
+  AppLanguage(Locale('lv'), 'Latviešu'),
+  AppLanguage(Locale('lt'), 'Lietuvių'),
+  AppLanguage(Locale('lb'), 'Lëtzebuergesch'),
+  AppLanguage(Locale('mk'), 'Македонски'),
+  AppLanguage(Locale('ms'), 'Melayu'),
+  AppLanguage(Locale('ml'), 'മലയാളം'),
+  AppLanguage(Locale('mt'), 'Malti'),
+  AppLanguage(Locale('mr'), 'मराठी'),
+  AppLanguage(Locale('mn'), 'Монгол'),
+  AppLanguage(Locale('ne'), 'नेपाली'),
+  AppLanguage(Locale('no'), 'Norsk'),
+  AppLanguage(Locale('fa'), 'فارسی'),
+  AppLanguage(Locale('pl'), 'Polski'),
+  AppLanguage(Locale('pt'), 'Português'),
+  AppLanguage(Locale('pa'), 'ਪੰਜਾਬੀ'),
+  AppLanguage(Locale('ro'), 'Română'),
+  AppLanguage(Locale('ru'), 'Русский'),
+  AppLanguage(Locale('sr'), 'Српски'),
+  AppLanguage(Locale('si'), 'සිංහල'),
+  AppLanguage(Locale('sk'), 'Slovenčina'),
+  AppLanguage(Locale('sl'), 'Slovenščina'),
+  AppLanguage(Locale('es'), 'Español'),
+  AppLanguage(Locale('sw'), 'Kiswahili'),
+  AppLanguage(Locale('sv'), 'Svenska'),
+  AppLanguage(Locale('ta'), 'தமிழ்'),
+  AppLanguage(Locale('te'), 'తెలుగు'),
+  AppLanguage(Locale('th'), 'ไทย'),
+  AppLanguage(Locale('tr'), 'Türkçe'),
+  AppLanguage(Locale('uk'), 'Українська'),
+  AppLanguage(Locale('ur'), 'اردو'),
+  AppLanguage(Locale('uz'), 'Oʻzbek'),
+  AppLanguage(Locale('vi'), 'Tiếng Việt'),
+  AppLanguage(Locale('cy'), 'Cymraeg'),
+  AppLanguage(Locale('yi'), 'ייִדיש'),
+  AppLanguage(Locale('zu'), 'isiZulu'),
+];
+
+/// Fast lookup of a content language's endonym by its code.
+final Map<String, String> _contentLanguageNames = {
+  for (final lang in contentLanguages) lang.locale.languageCode: lang.name,
+};
+
 /// A human-readable name for a BCP-47 language [code], for badging and
-/// filtering recipes in the Discover feed. Recipe content can be in any
-/// language — not only the six the UI ships in — so unknown codes fall back to
-/// the uppercased code (e.g. `ja` → `JA`) rather than failing.
+/// filtering recipes in the Discover feed and labelling the recipe editor's
+/// language picker. Recipe content can be in any language, so a code we don't
+/// know an endonym for falls back to the uppercased code (e.g. `xx` → `XX`)
+/// rather than failing.
 String languageDisplayName(String code) {
   final normalized = code.trim().toLowerCase();
-  for (final lang in supportedLanguages) {
-    if (lang.locale.languageCode == normalized) return lang.name;
-  }
+  final name = _contentLanguageNames[normalized];
+  if (name != null) return name;
   return normalized.isEmpty ? '—' : normalized.toUpperCase();
+}
+
+/// The selectable content-language codes for the recipe editor: every language
+/// in [contentLanguages], sorted by display name, with [extra] (e.g. a recipe's
+/// existing code that isn't in the list) folded in so an existing value is never
+/// dropped from the picker.
+List<String> contentLanguageCodes({String? extra}) {
+  final codes = <String>{
+    for (final lang in contentLanguages) lang.locale.languageCode,
+    if (extra != null && extra.trim().isNotEmpty) extra.trim().toLowerCase(),
+  }.toList();
+  codes.sort(
+    (a, b) => languageDisplayName(a)
+        .toLowerCase()
+        .compareTo(languageDisplayName(b).toLowerCase()),
+  );
+  return codes;
 }
 
 /// Holds the live [SharedPreferences] instance. Overridden in `main()` with the

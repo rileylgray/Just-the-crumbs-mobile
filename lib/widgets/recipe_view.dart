@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../models/category.dart';
@@ -8,7 +9,12 @@ import '../theme/app_theme.dart';
 
 /// Read-only rendering of a recipe's contents (title, meta, ingredients,
 /// steps). Shared by the owner and public detail screens.
-class RecipeView extends StatelessWidget {
+///
+/// Ingredients and steps can be ticked off (with a strike-through) while
+/// following along. A "cook mode" toggle scales the text up and keeps the
+/// screen awake. All of this state is local to the widget, so it resets as
+/// soon as the recipe screen is left.
+class RecipeView extends StatefulWidget {
   const RecipeView({
     super.key,
     required this.recipe,
@@ -21,10 +27,40 @@ class RecipeView extends StatelessWidget {
   final Widget? footer;
 
   @override
+  State<RecipeView> createState() => _RecipeViewState();
+}
+
+class _RecipeViewState extends State<RecipeView> {
+  /// Larger text and screen-always-on for hands-busy cooking.
+  bool _cookMode = false;
+
+  /// Indices of ingredients/steps the user has ticked off.
+  final Set<int> _checkedIngredients = {};
+  final Set<int> _checkedSteps = {};
+
+  /// How much to scale up text when cook mode is on.
+  static const double _cookModeScale = 1.3;
+
+  @override
+  void dispose() {
+    // Never leave the screen forced awake after the user walks away.
+    WakelockPlus.disable();
+    super.dispose();
+  }
+
+  void _toggleCookMode(bool enabled) {
+    setState(() => _cookMode = enabled);
+    WakelockPlus.toggle(enable: enabled);
+  }
+
+  double _scaled(double size) => _cookMode ? size * _cookModeScale : size;
+
+  @override
   Widget build(BuildContext context) {
+    final recipe = widget.recipe;
     final l10n = AppLocalizations.of(context);
     final chips = recipe.categoryIds
-        .map((id) => categoriesById[id])
+        .map((id) => widget.categoriesById[id])
         .whereType<Category>()
         .toList();
 
@@ -36,10 +72,12 @@ class RecipeView extends StatelessWidget {
         40 + MediaQuery.of(context).viewPadding.bottom,
       ),
       children: [
+        _cookModeToggle(l10n),
+        const SizedBox(height: 8),
         Text(
           recipe.title,
-          style: const TextStyle(
-            fontSize: 26,
+          style: TextStyle(
+            fontSize: _scaled(26),
             fontWeight: FontWeight.bold,
             color: AppColors.text,
           ),
@@ -73,18 +111,21 @@ class RecipeView extends StatelessWidget {
         if (recipe.description.isNotEmpty) ...[
           const SizedBox(height: 16),
           Text(recipe.description,
-              style: const TextStyle(fontSize: 16, height: 1.4)),
+              style: TextStyle(fontSize: _scaled(16), height: 1.4)),
         ],
         const SizedBox(height: 24),
         _sectionTitle(l10n.ingredientsTitle),
         const SizedBox(height: 8),
-        ...recipe.ingredients.map(_ingredientRow),
+        ...List.generate(
+          recipe.ingredients.length,
+          (i) => _ingredientRow(i, recipe.ingredients[i]),
+        ),
         const SizedBox(height: 24),
         _sectionTitle(l10n.stepsTitle),
         const SizedBox(height: 8),
         ...List.generate(
           recipe.steps.length,
-          (i) => _stepRow(i + 1, recipe.steps[i]),
+          (i) => _stepRow(i, i + 1, recipe.steps[i]),
         ),
         if (recipe.sourceUrl.isNotEmpty) ...[
           const SizedBox(height: 24),
@@ -101,10 +142,52 @@ class RecipeView extends StatelessWidget {
             ),
           ),
         ],
-        ?footer,
+        ?widget.footer,
       ],
     );
   }
+
+  Widget _cookModeToggle(AppLocalizations l10n) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: _cookMode
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.restaurant_menu,
+                size: 20,
+                color: _cookMode ? AppColors.primary : AppColors.textMuted),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.cookMode,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: _cookMode ? AppColors.primary : AppColors.text,
+                    ),
+                  ),
+                  if (_cookMode)
+                    Text(
+                      l10n.cookModeOnHint,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textMuted),
+                    ),
+                ],
+              ),
+            ),
+            Switch(
+              value: _cookMode,
+              onChanged: _toggleCookMode,
+            ),
+          ],
+        ),
+      );
 
   Future<void> _openSource(String url) async {
     final uri = Uri.tryParse(url.trim());
@@ -114,57 +197,100 @@ class RecipeView extends StatelessWidget {
 
   Widget _sectionTitle(String text) => Text(
         text,
-        style: const TextStyle(
-          fontSize: 20,
+        style: TextStyle(
+          fontSize: _scaled(20),
           fontWeight: FontWeight.bold,
           color: AppColors.primaryDark,
         ),
       );
 
-  Widget _ingredientRow(String text) => Padding(
+  Widget _ingredientRow(int index, String text) {
+    final checked = _checkedIngredients.contains(index);
+    return InkWell(
+      onTap: () => setState(() {
+        checked
+            ? _checkedIngredients.remove(index)
+            : _checkedIngredients.add(index);
+      }),
+      child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 6, right: 10),
-              child: Icon(Icons.circle, size: 7, color: AppColors.primary),
+            Padding(
+              padding: const EdgeInsets.only(top: 2, right: 10),
+              child: Icon(
+                checked ? Icons.check_circle : Icons.circle_outlined,
+                size: _scaled(18),
+                color: checked ? AppColors.primary : AppColors.textMuted,
+              ),
             ),
             Expanded(
-              child: Text(text, style: const TextStyle(fontSize: 16, height: 1.35)),
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: _scaled(16),
+                  height: 1.35,
+                  color: checked ? AppColors.textMuted : AppColors.text,
+                  decoration:
+                      checked ? TextDecoration.lineThrough : TextDecoration.none,
+                ),
+              ),
             ),
           ],
         ),
-      );
+      ),
+    );
+  }
 
-  Widget _stepRow(int number, String text) => Padding(
+  Widget _stepRow(int index, int number, String text) {
+    final checked = _checkedSteps.contains(index);
+    final badgeSize = _scaled(26);
+    return InkWell(
+      onTap: () => setState(() {
+        checked ? _checkedSteps.remove(index) : _checkedSteps.add(index);
+      }),
+      child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 26,
-              height: 26,
+              width: badgeSize,
+              height: badgeSize,
               alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
+              decoration: BoxDecoration(
+                color: checked ? AppColors.textMuted : AppColors.primary,
                 shape: BoxShape.circle,
               ),
-              child: Text('$number',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13)),
+              child: checked
+                  ? Icon(Icons.check, color: Colors.white, size: _scaled(15))
+                  : Text('$number',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: _scaled(13))),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child:
-                    Text(text, style: const TextStyle(fontSize: 16, height: 1.4)),
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: _scaled(16),
+                    height: 1.4,
+                    color: checked ? AppColors.textMuted : AppColors.text,
+                    decoration: checked
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                  ),
+                ),
               ),
             ),
           ],
         ),
-      );
+      ),
+    );
+  }
 }

@@ -850,6 +850,18 @@ abstract class AppLocalizations {
   /// **'Steps'**
   String get stepsTitle;
 
+  /// No description provided for @cookMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Cook mode'**
+  String get cookMode;
+
+  /// No description provided for @cookModeOnHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Larger text, screen stays on'**
+  String get cookModeOnHint;
+
   /// No description provided for @recipeSource.
   ///
   /// In en, this message translates to:

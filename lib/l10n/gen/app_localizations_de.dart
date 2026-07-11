@@ -419,6 +419,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get stepsTitle => 'Schritte';
 
   @override
+  String get cookMode => 'Kochmodus';
+
+  @override
+  String get cookModeOnHint => 'Größere Schrift, Bildschirm bleibt an';
+
+  @override
   String recipeSource(String url) {
     return 'Quelle: $url';
   }
