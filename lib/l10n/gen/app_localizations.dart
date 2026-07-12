@@ -652,6 +652,30 @@ abstract class AppLocalizations {
   /// **'Fetching and parsing the page…'**
   String get importProgress;
 
+  /// No description provided for @importOfflineError.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline. Connect to the internet to import a recipe from a link.'**
+  String get importOfflineError;
+
+  /// No description provided for @importNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach that page. Check your connection and try again.'**
+  String get importNetworkError;
+
+  /// No description provided for @importReadError.
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t find a recipe on that page. Try a different link.'**
+  String get importReadError;
+
+  /// No description provided for @offlineBannerEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re offline — your changes save on this device and sync when you reconnect.'**
+  String get offlineBannerEditing;
+
   /// No description provided for @categoriesTitle.
   ///
   /// In en, this message translates to:

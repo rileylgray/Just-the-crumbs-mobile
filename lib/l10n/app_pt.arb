@@ -101,6 +101,10 @@
   "importButton": "Importar",
   "importingButton": "Importando…",
   "importProgress": "Buscando e analisando a página…",
+  "importOfflineError": "Você está offline. Conecte-se à internet para importar uma receita de um link.",
+  "importNetworkError": "Não foi possível acessar essa página. Verifique sua conexão e tente novamente.",
+  "importReadError": "Não encontramos uma receita nessa página. Tente outro link.",
+  "offlineBannerEditing": "Você está offline — suas alterações são salvas neste dispositivo e sincronizadas quando você reconectar.",
 
   "categoriesTitle": "Categorias",
   "newCategoryButton": "Nova categoria",

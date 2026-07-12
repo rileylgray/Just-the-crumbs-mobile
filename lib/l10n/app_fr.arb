@@ -101,6 +101,10 @@
   "importButton": "Importer",
   "importingButton": "Importation…",
   "importProgress": "Récupération et analyse de la page…",
+  "importOfflineError": "Vous êtes hors ligne. Connectez-vous à internet pour importer une recette depuis un lien.",
+  "importNetworkError": "Impossible d'accéder à cette page. Vérifiez votre connexion et réessayez.",
+  "importReadError": "Nous n'avons trouvé aucune recette sur cette page. Essayez un autre lien.",
+  "offlineBannerEditing": "Hors ligne — vos modifications sont enregistrées sur cet appareil et synchronisées dès que vous serez reconnecté.",
 
   "categoriesTitle": "Catégories",
   "newCategoryButton": "Nouvelle catégorie",

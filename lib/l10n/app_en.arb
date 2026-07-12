@@ -117,6 +117,10 @@
   "importButton": "Import",
   "importingButton": "Importing…",
   "importProgress": "Fetching and parsing the page…",
+  "importOfflineError": "You're offline. Connect to the internet to import a recipe from a link.",
+  "importNetworkError": "Couldn't reach that page. Check your connection and try again.",
+  "importReadError": "We couldn't find a recipe on that page. Try a different link.",
+  "offlineBannerEditing": "You're offline — your changes save on this device and sync when you reconnect.",
 
   "categoriesTitle": "Categories",
   "newCategoryButton": "New category",

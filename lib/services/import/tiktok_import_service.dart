@@ -55,7 +55,11 @@ class TiktokImportService {
     final fromDesc = _parseFromDescription(meta.description, meta.creator);
     var title = fromDesc.title;
     var ingredients = fromDesc.ingredients;
-    var steps = fromDesc.steps;
+    // Drop "watch the video" / "link in bio" placeholder steps: a caption that
+    // only *gestures* at the method (while the real steps are spoken) should
+    // count as missing its steps, so the transcript + AI fallback below can
+    // supply the actual instructions instead of being suppressed by a stub.
+    var steps = _dropPlaceholderSteps(fromDesc.steps);
 
     // A well-formed description (real ingredients *and* steps) is trusted as-is;
     // anything short of that is low-confidence and may be replaced below.
@@ -309,43 +313,55 @@ class TiktokImportService {
   /// using `Ingredients:` / `Instructions:` headers when present and otherwise
   /// classifying line-by-line (ingredients first, then steps).
   (List<String>, List<String>) _splitSections(List<String> lines, int titleIdx) {
-    var ingIdx = -1;
-    var stepIdx = -1;
+    // Every ingredient/step header, in order. Walking *all* of them (not just
+    // the first of each) means interleaved sections — "Ingredients" →
+    // "Instructions" → "Other ingredients" — each land in the right bucket,
+    // instead of a trailing ingredient block being swallowed by the steps
+    // region (which used to run to the end of the description).
+    final markers = <(int, bool)>[]; // (lineIndex, isIngredientHeader)
     for (var i = 0; i < lines.length; i++) {
-      if (ingIdx < 0 && _isIngredientsHeader(lines[i])) ingIdx = i;
-      if (stepIdx < 0 && _isStepsHeader(lines[i])) stepIdx = i;
-    }
-
-    if (ingIdx >= 0 && stepIdx >= 0) {
-      if (ingIdx < stepIdx) {
-        return (
-          _region(lines, ingIdx, stepIdx, _ingredientsHeader),
-          _region(lines, stepIdx, lines.length, _stepsHeader),
-        );
+      if (_isIngredientsHeader(lines[i])) {
+        markers.add((i, true));
+      } else if (_isStepsHeader(lines[i])) {
+        markers.add((i, false));
       }
-      return (
-        _region(lines, ingIdx, lines.length, _ingredientsHeader),
-        _region(lines, stepIdx, ingIdx, _stepsHeader),
-      );
     }
 
-    if (ingIdx >= 0) {
-      final region = _region(lines, ingIdx, lines.length, _ingredientsHeader);
-      return _splitByStepStart(region);
+    if (markers.isEmpty) {
+      // No headers: classify the body (everything after the title).
+      final body = lines.sublist(titleIdx < 0 ? 0 : titleIdx + 1);
+      return _classify(body);
     }
 
-    if (stepIdx >= 0) {
-      final steps = _region(lines, stepIdx, lines.length, _stepsHeader);
-      final ing = lines
-          .sublist(0, stepIdx)
-          .where(_looksLikeIngredient)
-          .toList();
-      return (ing, steps);
+    // When there's a leading steps header and ingredients sit *above* it with
+    // no header of their own, keep the old behaviour of harvesting them.
+    final firstMarker = markers.first;
+    final ing = <String>[];
+    final steps = <String>[];
+    if (!firstMarker.$2 && firstMarker.$1 > 0) {
+      ing.addAll(lines.sublist(0, firstMarker.$1).where(_looksLikeIngredient));
     }
 
-    // No headers: classify the body (everything after the title).
-    final body = lines.sublist(titleIdx < 0 ? 0 : titleIdx + 1);
-    return _classify(body);
+    final hasStepHeader = markers.any((m) => !m.$2);
+    for (var m = 0; m < markers.length; m++) {
+      final start = markers[m].$1;
+      final end = m + 1 < markers.length ? markers[m + 1].$1 : lines.length;
+      final isIng = markers[m].$2;
+      final region =
+          _region(lines, start, end, isIng ? _ingredientsHeader : _stepsHeader);
+      if (isIng && !hasStepHeader) {
+        // No explicit steps header anywhere: an ingredient region may run on
+        // into the method, so cut it at the first step-looking line.
+        final (regionIng, regionSteps) = _splitByStepStart(region);
+        ing.addAll(regionIng);
+        steps.addAll(regionSteps);
+      } else if (isIng) {
+        ing.addAll(region);
+      } else {
+        steps.addAll(region);
+      }
+    }
+    return (ing, steps);
   }
 
   /// Slices `lines[start, end)`, stripping the section keyword off the header
@@ -699,6 +715,13 @@ class TiktokImportService {
     return out;
   }
 
+  /// Removes steps that don't actually instruct — "watch the video for the
+  /// recipe", "link in bio", "full recipe in the comments". These stand-ins
+  /// otherwise make a description look complete and suppress the transcript/AI
+  /// fallback that holds the real method.
+  List<String> _dropPlaceholderSteps(List<String> steps) =>
+      steps.where((s) => !_placeholderStep.hasMatch(s)).toList();
+
   List<String> _finalizeSteps(List<String> raw) {
     final out = <String>[];
     for (final line in raw) {
@@ -754,7 +777,7 @@ class TiktokImportService {
     var t = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
     t = t.replaceAllMapped(
       RegExp(
-        r'(?<=\S)\s+(Ingredients?|Instructions?|Directions?|Method|Steps?|You.?ll need|What you.?ll need|What I used)\b',
+        r'(?<=\S)\s+((?:Other |Additional |Extra |More )?Ingredients?|Instructions?|Directions?|Method|Steps?|You.?ll(?: also)? need|What you.?ll need|What I used)\b',
         caseSensitive: false,
       ),
       (m) => '\n${m.group(1)}',
@@ -841,7 +864,9 @@ class TiktokImportService {
   // ---- Patterns ------------------------------------------------------------
 
   static final _ingredientsHeader = RegExp(
-    r"^(ingredients?|you'?ll need|what you'?ll need|what i used|shopping list)\s*:?",
+    r"^((?:other|additional|extra|more)\s+ingredients?"
+    r"|ingredients?|you'?ll (?:also )?need|what you'?ll need|what i used"
+    r"|shopping list)\s*:?",
     caseSensitive: false,
   );
   static final _stepsHeader = RegExp(
@@ -923,6 +948,14 @@ class TiktokImportService {
     r"|(?:we|i) finally|finally made|wait (?:for it|till|until)"
     r"|watch (?:me|this)|welcome back|in this (?:video|one)|part \d"
     r"|new york times recipes|i'?m cooking",
+    caseSensitive: false,
+  );
+  /// A "step" that only points elsewhere for the actual instructions.
+  static final _placeholderStep = RegExp(
+    r"watch (?:the )?(?:full )?(?:video|clip|reel)"
+    r"|(?:full |the )?recipe (?:is )?(?:in|on|below|down|link)"
+    r"|link in (?:my )?bio|(?:in|check) (?:the )?(?:comments?|description|bio)"
+    r"|see (?:the )?(?:video|below|comments?)|save (?:this|the recipe)",
     caseSensitive: false,
   );
   static final _outroChatter = RegExp(

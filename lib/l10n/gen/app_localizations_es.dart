@@ -309,6 +309,22 @@ class AppLocalizationsEs extends AppLocalizations {
   String get importProgress => 'Obteniendo y analizando la página…';
 
   @override
+  String get importOfflineError =>
+      'Estás sin conexión. Conéctate a internet para importar una receta desde un enlace.';
+
+  @override
+  String get importNetworkError =>
+      'No se pudo acceder a esa página. Comprueba tu conexión e inténtalo de nuevo.';
+
+  @override
+  String get importReadError =>
+      'No encontramos ninguna receta en esa página. Prueba con otro enlace.';
+
+  @override
+  String get offlineBannerEditing =>
+      'Sin conexión: tus cambios se guardan en este dispositivo y se sincronizan cuando vuelvas a conectarte.';
+
+  @override
   String get categoriesTitle => 'Categorías';
 
   @override

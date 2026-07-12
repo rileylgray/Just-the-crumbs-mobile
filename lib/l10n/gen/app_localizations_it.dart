@@ -313,6 +313,22 @@ class AppLocalizationsIt extends AppLocalizations {
   String get importProgress => 'Recupero e analisi della pagina…';
 
   @override
+  String get importOfflineError =>
+      'Sei offline. Connettiti a internet per importare una ricetta da un link.';
+
+  @override
+  String get importNetworkError =>
+      'Impossibile raggiungere la pagina. Controlla la connessione e riprova.';
+
+  @override
+  String get importReadError =>
+      'Non abbiamo trovato una ricetta in quella pagina. Prova con un altro link.';
+
+  @override
+  String get offlineBannerEditing =>
+      'Offline — le tue modifiche vengono salvate su questo dispositivo e sincronizzate quando torni online.';
+
+  @override
   String get categoriesTitle => 'Categorie';
 
   @override

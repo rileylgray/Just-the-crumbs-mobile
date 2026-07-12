@@ -197,6 +197,36 @@ boil the pasta for ten minutes.
       expect(result.title, 'Smashed beef kabobs');
     });
 
+    test('routes a trailing "Other ingredients" section to ingredients',
+        () async {
+      // A secondary ingredient header after the steps used to be swallowed by
+      // the steps region (which ran to the end of the description).
+      final desc = 'Loaded Nachos\n'
+          'Ingredients:\n'
+          '- 1 bag tortilla chips\n'
+          '- 2 cups cheddar\n'
+          'Instructions:\n'
+          '1. Spread the chips on a tray.\n'
+          '2. Bake until the cheese melts.\n'
+          'Other ingredients:\n'
+          '- 1 cup salsa\n'
+          '- 1 avocado';
+
+      final result = await RecipeImportService(
+        'https://www.tiktok.com/@chef/video/123',
+        client: _router(_tiktokPage(desc)),
+      ).call();
+
+      expect(result.ingredients.any((i) => i.toLowerCase().contains('salsa')),
+          isTrue);
+      expect(result.ingredients.any((i) => i.toLowerCase().contains('avocado')),
+          isTrue);
+      // The secondary-section items must not leak into the steps.
+      expect(result.steps.any((s) => s.toLowerCase().contains('salsa')),
+          isFalse);
+      expect(result.steps.length, 2);
+    });
+
     test('never throws; degrades to a watch-the-video step', () async {
       const desc = 'just vibes ✨ #foodtok';
       final result = await RecipeImportService(
@@ -327,6 +357,52 @@ half a cup of oats going in what's next?
           isFalse);
       expect(result.steps.length, 2);
       expect(result.steps.first, 'Blend the black beans.');
+    });
+
+    test('a placeholder step does not suppress the transcript/AI fallback',
+        () async {
+      // Real ingredients in the caption but only a "watch the video" stub for
+      // the method — the actual steps are spoken. The stub must not make the
+      // description look complete and block the transcript.
+      final desc = 'Garlic Butter Steak\n'
+          'Ingredients:\n'
+          '- 2 ribeye steaks\n'
+          '- 4 tbsp butter\n'
+          '- 3 cloves garlic\n'
+          'Instructions:\n'
+          'Watch the full video for the steps!';
+      const vtt = '''
+WEBVTT
+
+00:00:00.000 --> 00:00:03.000
+season the steaks generously with salt.
+
+00:00:03.000 --> 00:00:06.000
+sear them in a hot pan for three minutes each side.
+
+00:00:06.000 --> 00:00:09.000
+add the butter and garlic and baste the steaks.
+''';
+      final fake = _FakeAi((_) => null); // heuristic transcript parse carries it
+
+      final result = await RecipeImportService(
+        'https://www.tiktok.com/@chef/video/123',
+        client: _router(
+          _tiktokPage(desc, subtitles: [
+            {'url': 'https://v16.tiktokcdn.com/captions.vtt'},
+          ]),
+          vtt: vtt,
+        ),
+        aiParser: fake.call,
+      ).call();
+
+      // The transcript was consulted and its real steps imported.
+      expect(fake.calls, 1);
+      expect(result.ingredients.length, 3);
+      expect(result.steps.any((s) => s.toLowerCase().contains('sear')), isTrue);
+      // The "watch the video" placeholder is gone.
+      expect(result.steps.any((s) => s.toLowerCase().contains('watch the')),
+          isFalse);
     });
 
     test('degrades gracefully when the AI returns null', () async {

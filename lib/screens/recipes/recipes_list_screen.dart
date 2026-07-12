@@ -7,6 +7,7 @@ import '../../models/category.dart';
 import '../../models/recipe.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/offline_banner.dart';
 import '../../widgets/recipe_card.dart';
 
 class RecipesListScreen extends ConsumerStatefulWidget {
@@ -52,7 +53,7 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
           : null,
       body: Column(
         children: [
-          if (!online) const _OfflineBanner(),
+          if (!online) const OfflineBanner(),
           _SearchBar(onChanged: (v) => setState(() => _search = v)),
           if (categories.isNotEmpty)
             _CategoryFilterBar(
@@ -83,9 +84,11 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
 
   List<Recipe> _applyFilters(List<Recipe> recipes) {
     return recipes.where((r) {
-      final matchesSearch = _search.isEmpty ||
+      final matchesSearch =
+          _search.isEmpty ||
           r.title.toLowerCase().contains(_search.toLowerCase());
-      final matchesCategory = _selectedCategoryId == null ||
+      final matchesCategory =
+          _selectedCategoryId == null ||
           r.categoryIds.contains(_selectedCategoryId);
       return matchesSearch && matchesCategory;
     }).toList();
@@ -210,35 +213,6 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
   }
 }
 
-/// A slim bar shown above the recipe list while the device is offline, making
-/// it clear the list is cached and that adding/editing is paused.
-class _OfflineBanner extends StatelessWidget {
-  const _OfflineBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Material(
-      color: AppColors.primary.withValues(alpha: 0.12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            const Icon(Icons.cloud_off, size: 18, color: AppColors.textMuted),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                l10n.offlineBanner,
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _SearchBar extends StatelessWidget {
   const _SearchBar({required this.onChanged});
   final ValueChanged<String> onChanged;
@@ -293,8 +267,7 @@ class _CategoryFilterBar extends StatelessWidget {
                 label: Text(c.name),
                 selected: selectedId == c.id,
                 selectedColor: c.colorValue.withValues(alpha: 0.3),
-                onSelected: (_) =>
-                    onSelected(selectedId == c.id ? null : c.id),
+                onSelected: (_) => onSelected(selectedId == c.id ? null : c.id),
               ),
             ),
         ],
@@ -319,9 +292,10 @@ class _EmptyState extends StatelessWidget {
             const Text('🥐', style: TextStyle(fontSize: 56)),
             const SizedBox(height: 16),
             Text(
-              filtering ? l10n.recipesEmptyNoMatchTitle : l10n.recipesEmptyTitle,
-              style: const TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.bold),
+              filtering
+                  ? l10n.recipesEmptyNoMatchTitle
+                  : l10n.recipesEmptyTitle,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(

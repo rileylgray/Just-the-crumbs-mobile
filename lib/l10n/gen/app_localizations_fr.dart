@@ -311,6 +311,22 @@ class AppLocalizationsFr extends AppLocalizations {
   String get importProgress => 'Récupération et analyse de la page…';
 
   @override
+  String get importOfflineError =>
+      'Vous êtes hors ligne. Connectez-vous à internet pour importer une recette depuis un lien.';
+
+  @override
+  String get importNetworkError =>
+      'Impossible d\'accéder à cette page. Vérifiez votre connexion et réessayez.';
+
+  @override
+  String get importReadError =>
+      'Nous n\'avons trouvé aucune recette sur cette page. Essayez un autre lien.';
+
+  @override
+  String get offlineBannerEditing =>
+      'Hors ligne — vos modifications sont enregistrées sur cet appareil et synchronisées dès que vous serez reconnecté.';
+
+  @override
   String get categoriesTitle => 'Catégories';
 
   @override

@@ -1,10 +1,16 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 
 import '../../l10n/gen/app_localizations.dart';
+import '../../providers/providers.dart';
 import '../../services/import/recipe_import_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/offline_banner.dart';
 
 /// Paste a recipe URL, fetch + parse it client-side, then hand off to the form
 /// pre-filled for review. Mirrors the Rails import flow.
@@ -27,9 +33,18 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   }
 
   Future<void> _import() async {
+    final l10n = AppLocalizations.of(context);
     final url = _url.text.trim();
     if (url.isEmpty) {
-      setState(() => _error = AppLocalizations.of(context).importPasteUrlError);
+      setState(() => _error = l10n.importPasteUrlError);
+      return;
+    }
+    // Pre-flight connectivity check. Unlike creating a recipe (which works
+    // offline and syncs later), importing needs the network to fetch the source
+    // page — so fail fast with a clear message instead of making the user wait
+    // out a ~12s timeout.
+    if (!(ref.read(isOnlineProvider).value ?? true)) {
+      setState(() => _error = l10n.importOfflineError);
       return;
     }
     setState(() {
@@ -42,62 +57,91 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       // Hand off to the form for review & save.
       context.pushReplacement('/recipes/new', extra: imported);
     } catch (e) {
-      if (mounted) {
-        setState(() => _error = e.toString());
-      }
+      if (mounted) setState(() => _error = _friendlyError(l10n, e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  /// Maps a raw import failure to a friendly, localized message. Network/timeout
+  /// problems (including the service's `'Error importing recipe: …'` wrapper) get
+  /// a "check your connection" message; anything else means we reached the page
+  /// but couldn't find a recipe on it.
+  String _friendlyError(AppLocalizations l10n, Object error) {
+    final isNetwork =
+        error is TimeoutException ||
+        error is SocketException ||
+        error is http.ClientException ||
+        error is HandshakeException ||
+        (error is String && error.startsWith('Error importing recipe'));
+    return isNetwork ? l10n.importNetworkError : l10n.importReadError;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final online = ref.watch(isOnlineProvider).value ?? true;
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.importTitle),
         backgroundColor: AppColors.surface,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: Column(
         children: [
-          Text(
-            l10n.importIntro,
-            style: const TextStyle(color: AppColors.textMuted, height: 1.4),
-          ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _url,
-            keyboardType: TextInputType.url,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: l10n.importUrlLabel,
-              hintText: l10n.importUrlHint,
-              prefixIcon: const Icon(Icons.link),
-              errorText: _error,
+          if (!online) OfflineBanner(message: l10n.importOfflineError),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Text(
+                  l10n.importIntro,
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: _url,
+                  keyboardType: TextInputType.url,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: l10n.importUrlLabel,
+                    hintText: l10n.importUrlHint,
+                    prefixIcon: const Icon(Icons.link),
+                    errorText: _error,
+                  ),
+                  onSubmitted: (_) => _import(),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: (_loading || !online) ? null : _import,
+                  icon: _loading
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.download),
+                  label: Text(
+                    _loading ? l10n.importingButton : l10n.importButton,
+                  ),
+                ),
+                if (_loading) ...[
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      l10n.importProgress,
+                      style: const TextStyle(color: AppColors.textMuted),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            onSubmitted: (_) => _import(),
           ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: _loading ? null : _import,
-            icon: _loading
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.download),
-            label: Text(_loading ? l10n.importingButton : l10n.importButton),
-          ),
-          if (_loading) ...[
-            const SizedBox(height: 16),
-            Center(
-              child: Text(l10n.importProgress,
-                  style: const TextStyle(color: AppColors.textMuted)),
-            ),
-          ],
         ],
       ),
     );

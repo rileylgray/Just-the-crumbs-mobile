@@ -307,6 +307,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get importProgress => 'Fetching and parsing the page…';
 
   @override
+  String get importOfflineError =>
+      'You\'re offline. Connect to the internet to import a recipe from a link.';
+
+  @override
+  String get importNetworkError =>
+      'Couldn\'t reach that page. Check your connection and try again.';
+
+  @override
+  String get importReadError =>
+      'We couldn\'t find a recipe on that page. Try a different link.';
+
+  @override
+  String get offlineBannerEditing =>
+      'You\'re offline — your changes save on this device and sync when you reconnect.';
+
+  @override
   String get categoriesTitle => 'Categories';
 
   @override
