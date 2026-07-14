@@ -66,19 +66,19 @@ class AdConfig {
 
   static const String _bannerAndroid = String.fromEnvironment(
     'ADMOB_BANNER_ANDROID',
-    defaultValue: 'ca-app-pub-3940256099942544/6300978111', // test banner
+    defaultValue: 'ca-app-pub-7855071425983459/8980245276',
   );
   static const String _bannerIos = String.fromEnvironment(
     'ADMOB_BANNER_IOS',
-    defaultValue: 'ca-app-pub-3940256099942544/2934735716', // test banner
+    defaultValue: 'ca-app-pub-7855071425983459/5312463002',
   );
   static const String _interstitialAndroid = String.fromEnvironment(
     'ADMOB_INTERSTITIAL_ANDROID',
-    defaultValue: 'ca-app-pub-3940256099942544/1033173712', // test interstitial
+    defaultValue: 'ca-app-pub-7855071425983459/9293024907',
   );
   static const String _interstitialIos = String.fromEnvironment(
     'ADMOB_INTERSTITIAL_IOS',
-    defaultValue: 'ca-app-pub-3940256099942544/4411468910', // test interstitial
+    defaultValue: 'ca-app-pub-7855071425983459/7667163604',
   );
 
   /// Banner unit for the current platform.

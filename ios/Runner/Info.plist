@@ -4,10 +4,9 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<!-- AdMob application ID. Google's public TEST app ID — replace with your
-	     real app ID from the AdMob console before release. -->
+	<!-- AdMob application ID (real Just The Crumbs iOS app ID). -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-7855071425983459~5967069120</string>
 	<key>CFBundleDisplayName</key>
 	<string>Just The Crumbs</string>
 	<key>CFBundleURLTypes</key>

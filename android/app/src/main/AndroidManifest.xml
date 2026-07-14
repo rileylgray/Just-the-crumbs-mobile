@@ -33,11 +33,10 @@
                 <data android:scheme="justthecrumbs"/>
             </intent-filter>
         </activity>
-        <!-- AdMob application ID. This is Google's public TEST app ID — replace
-             it with your real app ID from the AdMob console before release. -->
+        <!-- AdMob application ID (real Just The Crumbs Android app ID). -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-7855071425983459~6984637320" />
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
