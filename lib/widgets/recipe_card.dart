@@ -15,6 +15,7 @@ class RecipeCard extends StatelessWidget {
     this.categoriesById = const {},
     this.showAuthor = false,
     this.showLanguage = false,
+    this.showLikes = false,
     this.trailing,
   });
 
@@ -26,6 +27,10 @@ class RecipeCard extends StatelessWidget {
   /// Show a small badge with the recipe's content language (used in the
   /// public Discover feed, where recipes span many languages).
   final bool showLanguage;
+
+  /// Show the recipe's like count (used in the public Discover feed, which is
+  /// sorted by likes).
+  final bool showLikes;
   final Widget? trailing;
 
   @override
@@ -100,6 +105,17 @@ class RecipeCard extends StatelessWidget {
                         if (showLanguage) ...[
                           const SizedBox(width: 8),
                           _LanguageBadge(code: recipe.language),
+                        ],
+                        if (showLikes) ...[
+                          const SizedBox(width: 8),
+                          Icon(Icons.favorite,
+                              size: 13, color: AppColors.primary),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${recipe.likeCount}',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade600),
+                          ),
                         ],
                       ],
                     ),

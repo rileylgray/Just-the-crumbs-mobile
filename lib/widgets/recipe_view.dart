@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../models/category.dart';
 import '../models/recipe.dart';
+import '../providers/locale_provider.dart';
+import '../services/measurement_converter.dart';
 import '../theme/app_theme.dart';
 
 /// Read-only rendering of a recipe's contents (title, meta, ingredients,
@@ -12,9 +15,10 @@ import '../theme/app_theme.dart';
 ///
 /// Ingredients and steps can be ticked off (with a strike-through) while
 /// following along. A "cook mode" toggle scales the text up and keeps the
-/// screen awake. All of this state is local to the widget, so it resets as
-/// soon as the recipe screen is left.
-class RecipeView extends StatefulWidget {
+/// screen awake, and a units control converts measurements between metric and
+/// imperial on the fly. All checkbox/cook-mode state is local to the widget, so
+/// it resets as soon as the recipe screen is left.
+class RecipeView extends ConsumerStatefulWidget {
   const RecipeView({
     super.key,
     required this.recipe,
@@ -27,14 +31,15 @@ class RecipeView extends StatefulWidget {
   final Widget? footer;
 
   @override
-  State<RecipeView> createState() => _RecipeViewState();
+  ConsumerState<RecipeView> createState() => _RecipeViewState();
 }
 
-class _RecipeViewState extends State<RecipeView> {
+class _RecipeViewState extends ConsumerState<RecipeView> {
   /// Larger text and screen-always-on for hands-busy cooking.
   bool _cookMode = false;
 
-  /// Indices of ingredients/steps the user has ticked off.
+  /// Indices of ingredients/steps the user has ticked off. Ingredients are
+  /// indexed across all groups in flat order.
   final Set<int> _checkedIngredients = {};
   final Set<int> _checkedSteps = {};
 
@@ -59,6 +64,7 @@ class _RecipeViewState extends State<RecipeView> {
   Widget build(BuildContext context) {
     final recipe = widget.recipe;
     final l10n = AppLocalizations.of(context);
+    final units = ref.watch(measurementSystemProvider);
     final chips = recipe.categoryIds
         .map((id) => widget.categoriesById[id])
         .whereType<Category>()
@@ -113,19 +119,18 @@ class _RecipeViewState extends State<RecipeView> {
           Text(recipe.description,
               style: TextStyle(fontSize: _scaled(16), height: 1.4)),
         ],
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
+        _unitsToggle(l10n, units),
+        const SizedBox(height: 20),
         _sectionTitle(l10n.ingredientsTitle),
         const SizedBox(height: 8),
-        ...List.generate(
-          recipe.ingredients.length,
-          (i) => _ingredientRow(i, recipe.ingredients[i]),
-        ),
+        ..._ingredientList(units),
         const SizedBox(height: 24),
         _sectionTitle(l10n.stepsTitle),
         const SizedBox(height: 8),
         ...List.generate(
           recipe.steps.length,
-          (i) => _stepRow(i, i + 1, recipe.steps[i]),
+          (i) => _stepRow(i, i + 1, convertMeasurements(recipe.steps[i], units)),
         ),
         if (recipe.sourceUrl.isNotEmpty) ...[
           const SizedBox(height: 24),
@@ -145,6 +150,36 @@ class _RecipeViewState extends State<RecipeView> {
         ?widget.footer,
       ],
     );
+  }
+
+  /// Builds the ingredient rows across every group, keeping a running flat
+  /// index so the checkbox state stays stable regardless of grouping. Group
+  /// headings only show for multi-part recipes.
+  List<Widget> _ingredientList(MeasurementSystem units) {
+    final rows = <Widget>[];
+    final groups = widget.recipe.ingredientGroups;
+    final showHeadings = widget.recipe.hasIngredientGroups;
+    var index = 0;
+    for (final group in groups) {
+      if (showHeadings && group.title.isNotEmpty) {
+        rows.add(Padding(
+          padding: EdgeInsets.only(top: rows.isEmpty ? 0 : 12, bottom: 4),
+          child: Text(
+            group.title,
+            style: TextStyle(
+              fontSize: _scaled(16),
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
+            ),
+          ),
+        ));
+      }
+      for (final item in group.items) {
+        rows.add(_ingredientRow(index, convertMeasurements(item, units)));
+        index++;
+      }
+    }
+    return rows;
   }
 
   Widget _cookModeToggle(AppLocalizations l10n) => Container(
@@ -188,6 +223,49 @@ class _RecipeViewState extends State<RecipeView> {
           ],
         ),
       );
+
+  /// Segmented control to switch the displayed measurements between the
+  /// recipe's original text, metric and imperial. Persisted across recipes.
+  Widget _unitsToggle(AppLocalizations l10n, MeasurementSystem units) {
+    return Row(
+      children: [
+        const Icon(Icons.straighten, size: 18, color: AppColors.textMuted),
+        const SizedBox(width: 8),
+        Text(
+          l10n.unitsLabel,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+          ),
+        ),
+        const Spacer(),
+        SegmentedButton<MeasurementSystem>(
+          showSelectedIcon: false,
+          style: ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            textStyle: WidgetStatePropertyAll(TextStyle(fontSize: _scaled(12))),
+          ),
+          segments: [
+            ButtonSegment(
+              value: MeasurementSystem.asWritten,
+              label: Text(l10n.unitsAsWritten),
+            ),
+            ButtonSegment(
+              value: MeasurementSystem.metric,
+              label: Text(l10n.unitsMetric),
+            ),
+            ButtonSegment(
+              value: MeasurementSystem.imperial,
+              label: Text(l10n.unitsImperial),
+            ),
+          ],
+          selected: {units},
+          onSelectionChanged: (s) =>
+              ref.read(measurementSystemProvider.notifier).set(s.first),
+        ),
+      ],
+    );
+  }
 
   Future<void> _openSource(String url) async {
     final uri = Uri.tryParse(url.trim());

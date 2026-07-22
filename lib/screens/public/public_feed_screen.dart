@@ -111,6 +111,7 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
                     recipe: filtered[i],
                     showAuthor: true,
                     showLanguage: true,
+                    showLikes: true,
                     onTap: () => context.push('/public/${filtered[i].id}'),
                     trailing: RecipeModerationMenu(recipe: filtered[i]),
                   ),

@@ -17,14 +17,42 @@ service cloud.firestore {
 
     // ---- Recipes ------------------------------------------------------------
     match /recipes/{recipeId} {
+      // A non-owner "like" may only change likeCount, by exactly ±1, and only on
+      // a public recipe. Everything else on the doc is owner-only.
+      function isLikeCountChange() {
+        return resource.data.public == true
+               && request.resource.data.diff(resource.data)
+                    .affectedKeys().hasOnly(['likeCount'])
+               && request.resource.data.likeCount is int
+               && (request.resource.data.likeCount
+                     == resource.data.get('likeCount', 0) + 1
+                   || request.resource.data.likeCount
+                     == resource.data.get('likeCount', 0) - 1);
+      }
+
       allow read: if resource.data.public == true
                   || (signedIn() && resource.data.userId == request.auth.uid);
 
       allow create: if signedIn()
                     && request.resource.data.userId == request.auth.uid;
 
-      allow update, delete: if signedIn()
+      allow update: if signedIn()
+                    && (resource.data.userId == request.auth.uid
+                        || isLikeCountChange());
+      allow delete: if signedIn()
                     && resource.data.userId == request.auth.uid;
+
+      // ---- Likes (subcollection) --------------------------------------------
+      // One doc per user who liked the recipe, keyed by their uid. Anyone signed
+      // in (incl. guests) may like a public recipe; you may only add/remove your
+      // own like.
+      match /likes/{likeUid} {
+        allow read: if signedIn();
+        allow create, delete: if signedIn()
+                      && likeUid == request.auth.uid
+                      && get(/databases/$(database)/documents/recipes/$(recipeId))
+                          .data.public == true;
+      }
 
       // ---- Comments (subcollection) -----------------------------------------
       match /comments/{commentId} {

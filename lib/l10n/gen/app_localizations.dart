@@ -538,6 +538,36 @@ abstract class AppLocalizations {
   /// **'Add at least one ingredient'**
   String get addAtLeastOneIngredient;
 
+  /// No description provided for @addIngredient.
+  ///
+  /// In en, this message translates to:
+  /// **'Add ingredient'**
+  String get addIngredient;
+
+  /// No description provided for @ingredientHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 2 cups flour'**
+  String get ingredientHint;
+
+  /// No description provided for @addIngredientGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Add ingredient group'**
+  String get addIngredientGroup;
+
+  /// No description provided for @ingredientGroupNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name (e.g. Crust)'**
+  String get ingredientGroupNameHint;
+
+  /// No description provided for @removeIngredientGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove group'**
+  String get removeIngredientGroup;
+
   /// No description provided for @fieldSteps.
   ///
   /// In en, this message translates to:
@@ -549,6 +579,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add at least one step'**
   String get addAtLeastOneStep;
+
+  /// No description provided for @addStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Add step'**
+  String get addStep;
+
+  /// No description provided for @stepHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Describe this step'**
+  String get stepHint;
 
   /// No description provided for @fieldSourceUrlOptional.
   ///
@@ -873,6 +915,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Steps'**
   String get stepsTitle;
+
+  /// No description provided for @unitsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Units'**
+  String get unitsLabel;
+
+  /// No description provided for @unitsAsWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'Original'**
+  String get unitsAsWritten;
+
+  /// No description provided for @unitsMetric.
+  ///
+  /// In en, this message translates to:
+  /// **'Metric'**
+  String get unitsMetric;
+
+  /// No description provided for @unitsImperial.
+  ///
+  /// In en, this message translates to:
+  /// **'Imperial'**
+  String get unitsImperial;
 
   /// No description provided for @cookMode.
   ///

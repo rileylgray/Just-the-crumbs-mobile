@@ -4,6 +4,7 @@ import 'package:html/dom.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
+import '../../models/recipe.dart';
 import 'ai_recipe_parser.dart';
 import 'tiktok_import_service.dart';
 
@@ -20,6 +21,15 @@ class ImportedRecipe {
     required this.steps,
     required this.sourceUrl,
   });
+
+  /// The ingredients as structured groups, so an imported multi-part recipe
+  /// (e.g. "Crust" / "Filling") lands in the editor already split. The web
+  /// scraper encodes groups as `Group — item`; anything without that separator
+  /// (including every TikTok import) becomes a single untitled group.
+  List<IngredientGroup> get ingredientGroups {
+    final parsed = IngredientGroup.parseEncoded(ingredients);
+    return parsed.isEmpty ? [IngredientGroup(items: ingredients)] : parsed;
+  }
 }
 
 /// Dart port of the Rails `RecipeImportService`. Fetches a recipe page and

@@ -253,10 +253,31 @@ class AppLocalizationsFr extends AppLocalizations {
   String get addAtLeastOneIngredient => 'Ajoutez au moins un ingrédient';
 
   @override
+  String get addIngredient => 'Ajouter un ingrédient';
+
+  @override
+  String get ingredientHint => 'ex. 2 tasses de farine';
+
+  @override
+  String get addIngredientGroup => 'Ajouter un groupe d\'ingrédients';
+
+  @override
+  String get ingredientGroupNameHint => 'Nom du groupe (ex. Pâte)';
+
+  @override
+  String get removeIngredientGroup => 'Supprimer le groupe';
+
+  @override
   String get fieldSteps => 'Étapes';
 
   @override
   String get addAtLeastOneStep => 'Ajoutez au moins une étape';
+
+  @override
+  String get addStep => 'Ajouter une étape';
+
+  @override
+  String get stepHint => 'Décrivez cette étape';
 
   @override
   String get fieldSourceUrlOptional => 'URL source (facultatif)';
@@ -435,6 +456,18 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get stepsTitle => 'Étapes';
+
+  @override
+  String get unitsLabel => 'Unités';
+
+  @override
+  String get unitsAsWritten => 'Original';
+
+  @override
+  String get unitsMetric => 'Métrique';
+
+  @override
+  String get unitsImperial => 'Impérial';
 
   @override
   String get cookMode => 'Mode cuisine';

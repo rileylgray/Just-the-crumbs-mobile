@@ -30,11 +30,15 @@ class RecipeRepository {
     });
   }
 
-  /// Public recipes for the community feed, newest first.
+  /// Public recipes for the community feed, most-liked first (ties broken by
+  /// recency). Sorted client-side to avoid a composite index and to keep legacy
+  /// recipes (no `likeCount`) — which read back as 0 likes — in the ordering.
   Stream<List<Recipe>> watchPublicRecipes() {
     return _recipes.where('public', isEqualTo: true).snapshots().map((snap) {
       final list = snap.docs.map(Recipe.fromDoc).toList();
       list.sort((a, b) {
+        final byLikes = b.likeCount.compareTo(a.likeCount); // desc
+        if (byLikes != 0) return byLikes;
         final at = a.createdAt ?? DateTime(0);
         final bt = b.createdAt ?? DateTime(0);
         return bt.compareTo(at); // desc
@@ -60,7 +64,7 @@ class RecipeRepository {
     required String authorName,
     required String title,
     required String description,
-    required List<String> ingredients,
+    required List<IngredientGroup> ingredientGroups,
     required List<String> steps,
     required String sourceUrl,
     required bool isPublic,
@@ -68,6 +72,7 @@ class RecipeRepository {
     required String language,
   }) async {
     final position = await _nextPosition(uid);
+    final ingredients = [for (final g in ingredientGroups) ...g.items];
     // Use a locally-generated id and DON'T await the write. The Firestore SDK
     // persists the write to its local cache immediately and syncs to the server
     // when connectivity allows. The future returned by set() only completes on
@@ -84,12 +89,14 @@ class RecipeRepository {
             'title': title,
             'description': description,
             'ingredients': ingredients,
+            'ingredientGroups': [for (final g in ingredientGroups) g.toMap()],
             'steps': steps,
             'sourceUrl': sourceUrl,
             'position': position,
             'public': isPublic,
             'categoryIds': categoryIds,
             'language': language,
+            'likeCount': 0,
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           })
@@ -105,13 +112,14 @@ class RecipeRepository {
     String id, {
     required String title,
     required String description,
-    required List<String> ingredients,
+    required List<IngredientGroup> ingredientGroups,
     required List<String> steps,
     required String sourceUrl,
     required bool isPublic,
     required List<String> categoryIds,
     required String language,
   }) async {
+    final ingredients = [for (final g in ingredientGroups) ...g.items];
     // Don't await the write (see createRecipe). The Firestore SDK applies the
     // update to its local cache immediately — so streams reflect the edit right
     // away — and syncs to the server when connectivity allows. Awaiting instead
@@ -124,6 +132,7 @@ class RecipeRepository {
             'title': title,
             'description': description,
             'ingredients': ingredients,
+            'ingredientGroups': [for (final g in ingredientGroups) g.toMap()],
             'steps': steps,
             'sourceUrl': sourceUrl,
             'public': isPublic,
@@ -145,6 +154,40 @@ class RecipeRepository {
   }
 
   Future<void> deleteRecipe(String id) => _recipes.doc(id).delete();
+
+  // ---- Likes ----------------------------------------------------------------
+
+  DocumentReference<Map<String, dynamic>> _likeDoc(String recipeId, String uid) =>
+      _recipes.doc(recipeId).collection('likes').doc(uid);
+
+  /// Whether [uid] has liked recipe [recipeId] (live).
+  Stream<bool> watchUserLike(String recipeId, String uid) =>
+      _likeDoc(recipeId, uid).snapshots().map((doc) => doc.exists);
+
+  /// Toggles [uid]'s like on [recipeId], keeping the recipe's `likeCount` in
+  /// step. A transaction reads both the per-user like doc and the recipe so a
+  /// double-tap can't double-count, and it only ever writes `likeCount` on the
+  /// recipe (the security rules let a non-owner change nothing else).
+  Future<void> toggleLike(String recipeId, String uid) async {
+    final likeRef = _likeDoc(recipeId, uid);
+    final recipeRef = _recipes.doc(recipeId);
+    await _db.runTransaction((tx) async {
+      final likeSnap = await tx.get(likeRef);
+      final recipeSnap = await tx.get(recipeRef);
+      if (!recipeSnap.exists) return;
+      final current = (recipeSnap.data()?['likeCount'] as num?)?.toInt() ?? 0;
+      if (likeSnap.exists) {
+        tx.delete(likeRef);
+        tx.update(recipeRef, {'likeCount': current > 0 ? current - 1 : 0});
+      } else {
+        tx.set(likeRef, {
+          'userId': uid,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        tx.update(recipeRef, {'likeCount': current + 1});
+      }
+    });
+  }
 
   /// Persist a new manual ordering (from drag-and-drop) as `position` = index.
   Future<void> persistOrder(List<Recipe> ordered) async {
@@ -168,7 +211,7 @@ class RecipeRepository {
       authorName: authorName,
       title: source.title,
       description: source.description,
-      ingredients: source.ingredients,
+      ingredientGroups: source.ingredientGroups,
       steps: source.steps,
       sourceUrl: source.sourceUrl,
       isPublic: false,
@@ -200,6 +243,7 @@ class RecipeRepository {
       'title': recipe.title,
       'description': recipe.description,
       'ingredients': recipe.ingredients,
+      'ingredientGroups': [for (final g in recipe.ingredientGroups) g.toMap()],
       'steps': recipe.steps,
       'sourceUrl': recipe.sourceUrl,
       'createdAt': FieldValue.serverTimestamp(),

@@ -130,6 +130,14 @@ final recipeProvider = StreamProvider.family<Recipe?, String>(
   (ref, id) => ref.watch(recipeRepositoryProvider).watchRecipe(id),
 );
 
+/// Whether the current user has liked recipe [id] (live). Defaults to false
+/// while the uid is still resolving.
+final userLikedProvider = StreamProvider.family<bool, String>((ref, id) {
+  final uid = ref.watch(currentUidProvider);
+  if (uid == null) return Stream.value(false);
+  return ref.watch(recipeRepositoryProvider).watchUserLike(id, uid);
+});
+
 // ---- Categories ------------------------------------------------------------
 
 final userCategoriesProvider = StreamProvider<List<Category>>((ref) {

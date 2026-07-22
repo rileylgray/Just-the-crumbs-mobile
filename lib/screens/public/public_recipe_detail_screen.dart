@@ -41,6 +41,7 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
           appBar: AppBar(
             title: const Text(''),
             actions: [
+              _LikeButton(recipe: recipe),
               IconButton(
                 tooltip: l10n.tooltipShare,
                 icon: const Icon(Icons.share_outlined),
@@ -132,6 +133,44 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
         SnackBar(content: Text(l10n.copiedToRecipes)),
       );
     }
+  }
+}
+
+/// Heart toggle with a live like count. Tapping likes/unlikes the recipe; the
+/// count comes from the recipe doc (kept live by [recipeProvider]) and the
+/// filled/outline state from the current user's like doc.
+class _LikeButton extends ConsumerWidget {
+  const _LikeButton({required this.recipe});
+
+  final Recipe recipe;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final liked = ref.watch(userLikedProvider(recipe.id)).value ?? false;
+    return TextButton.icon(
+      onPressed: () async {
+        final uid = ref.read(currentUidProvider);
+        if (uid == null) return;
+        try {
+          await ref.read(recipeRepositoryProvider).toggleLike(recipe.id, uid);
+        } catch (e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l10n.errorWithMessage(e.toString()))));
+          }
+        }
+      },
+      icon: Icon(
+        liked ? Icons.favorite : Icons.favorite_border,
+        color: liked ? AppColors.primary : null,
+        size: 20,
+      ),
+      label: Text('${recipe.likeCount}'),
+      style: TextButton.styleFrom(
+        foregroundColor: liked ? AppColors.primary : AppColors.textMuted,
+      ),
+    );
   }
 }
 

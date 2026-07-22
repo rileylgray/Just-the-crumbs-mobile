@@ -231,3 +231,36 @@ final contentLanguageProvider =
     NotifierProvider<ContentLanguageController, ContentLanguagePref>(
   ContentLanguageController.new,
 );
+
+/// How to display measurements in a recipe: exactly as written, or converted to
+/// metric or imperial. The choice is remembered across recipes and restarts.
+enum MeasurementSystem { asWritten, metric, imperial }
+
+/// Persists the reader's preferred measurement system for recipe pages.
+///
+/// Defaults to [MeasurementSystem.asWritten] so a recipe's original text is
+/// never converted until the reader explicitly asks for it.
+class MeasurementSystemController extends Notifier<MeasurementSystem> {
+  static const _prefsKey = 'measurement_system';
+
+  @override
+  MeasurementSystem build() {
+    final raw = ref.watch(sharedPreferencesProvider).getString(_prefsKey);
+    return MeasurementSystem.values
+            .where((s) => s.name == raw)
+            .firstOrNull ??
+        MeasurementSystem.asWritten;
+  }
+
+  Future<void> set(MeasurementSystem system) async {
+    await ref
+        .read(sharedPreferencesProvider)
+        .setString(_prefsKey, system.name);
+    state = system;
+  }
+}
+
+final measurementSystemProvider =
+    NotifierProvider<MeasurementSystemController, MeasurementSystem>(
+  MeasurementSystemController.new,
+);
