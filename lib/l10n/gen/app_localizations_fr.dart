@@ -84,17 +84,20 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get profileSignInInfoBody =>
-      'En vous connectant avec Google, les recettes créées en tant qu\'invité sont associées à votre compte, pour que vous puissiez les ouvrir sur n\'importe quel appareil.\n\nLes recettes d\'invité n\'existent que sur ce téléphone jusqu\'à votre connexion — connectez-vous donc ici avant de changer de téléphone, sinon elles ne seront pas conservées.';
+      'En vous connectant, les recettes créées en tant qu\'invité sont associées à votre compte, pour que vous puissiez les ouvrir sur n\'importe quel appareil.\n\nLes recettes d\'invité n\'existent que sur cet appareil jusqu\'à votre connexion — connectez-vous donc ici avant de changer d\'appareil, sinon elles ne seront pas conservées.';
 
   @override
   String get profileGuestCardTitle => 'Vous naviguez en tant qu\'invité';
 
   @override
   String get profileGuestCardBody =>
-      'Connectez-vous avec Google pour garder vos recettes en sécurité et y accéder depuis n\'importe quel appareil. Les recettes que vous avez déjà créées seront conservées.';
+      'Connectez-vous pour garder vos recettes en sécurité et y accéder depuis n\'importe quel appareil. Les recettes que vous avez déjà créées seront conservées.';
 
   @override
   String get profileSignInWithGoogle => 'Se connecter avec Google';
+
+  @override
+  String get profileSignInWithApple => 'Se connecter avec Apple';
 
   @override
   String get profileSignOut => 'Se déconnecter';

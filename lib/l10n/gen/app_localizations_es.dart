@@ -84,17 +84,20 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get profileSignInInfoBody =>
-      'Al iniciar sesión con Google, las recetas que creaste como invitado se vinculan a tu cuenta, para que puedas abrirlas en cualquier dispositivo.\n\nLas recetas de invitado solo existen en este teléfono hasta que inicies sesión, así que inicia sesión aquí antes de cambiar de teléfono o no se conservarán.';
+      'Al iniciar sesión, las recetas que creaste como invitado se vinculan a tu cuenta, para que puedas abrirlas en cualquier dispositivo.\n\nLas recetas de invitado solo existen en este dispositivo hasta que inicies sesión, así que inicia sesión aquí antes de cambiar de dispositivo o no se conservarán.';
 
   @override
   String get profileGuestCardTitle => 'Estás navegando como invitado';
 
   @override
   String get profileGuestCardBody =>
-      'Inicia sesión con Google para mantener tus recetas seguras y acceder a ellas desde cualquier dispositivo. Las recetas que ya hayas creado se conservarán.';
+      'Inicia sesión para mantener tus recetas seguras y acceder a ellas desde cualquier dispositivo. Las recetas que ya hayas creado se conservarán.';
 
   @override
   String get profileSignInWithGoogle => 'Iniciar sesión con Google';
+
+  @override
+  String get profileSignInWithApple => 'Iniciar sesión con Apple';
 
   @override
   String get profileSignOut => 'Cerrar sesión';

@@ -1,22 +1,40 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../config.dart';
 
-/// Wraps Firebase Auth + Google Sign-In and keeps a Firestore `users/{uid}`
-/// profile in sync.
+/// Wraps Firebase Auth (Google and Apple sign-in) and keeps a Firestore
+/// `users/{uid}` profile in sync.
 ///
 /// Model: the app signs in **anonymously** at startup so guests can browse and
-/// comment immediately. Tapping "Sign in with Google" **links** the Google
+/// comment immediately. Tapping a sign-in button **links** the provider
 /// credential onto the anonymous account, preserving any recipes made as a
-/// guest. If that Google account already exists, we sign into it instead.
+/// guest. If that provider account already exists, we sign into it instead.
+///
+/// Apple's guideline 4.8 requires Sign in with Apple wherever a third-party
+/// login (here, Google) is offered, so [signInWithApple] is surfaced alongside
+/// [signInWithGoogle] on Apple platforms — see [supportsAppleSignIn].
 class AuthService {
   AuthService(this._auth, this._db);
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
   bool _googleInitialized = false;
+
+  /// Whether Sign in with Apple can be offered on this platform. Firebase's
+  /// native Apple flow exists on iOS/macOS; elsewhere it would need a web
+  /// redirect, so the button is hidden instead.
+  static bool get supportsAppleSignIn =>
+      defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.macOS;
+
+  /// Requests only the name and email — the minimum Apple's guideline 4.8 asks
+  /// a login option to collect, and all the app needs for a profile.
+  AppleAuthProvider get _appleProvider => AppleAuthProvider()
+    ..addScope('email')
+    ..addScope('name');
 
   User? get currentUser => _auth.currentUser;
 
@@ -40,9 +58,21 @@ class AuthService {
     return cred.user!;
   }
 
+  /// Configures Google Sign-In.
+  ///
+  /// On iOS/macOS the **iOS OAuth client id must be passed explicitly**: the
+  /// plugin otherwise looks for it in a bundled `GoogleService-Info.plist`, and
+  /// without a client id the Google SDK has no configuration and throws as soon
+  /// as the sign-in button is tapped. Android ignores `clientId` and uses the
+  /// web (`client_type: 3`) id supplied as `serverClientId`.
   Future<void> _initGoogle() async {
     if (_googleInitialized) return;
+    final isApplePlatform = defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
     await GoogleSignIn.instance.initialize(
+      clientId: (isApplePlatform && AppConfig.googleIosClientId.isNotEmpty)
+          ? AppConfig.googleIosClientId
+          : null,
       serverClientId: AppConfig.googleServerClientId.isEmpty
           ? null
           : AppConfig.googleServerClientId,
@@ -85,6 +115,42 @@ class AuthService {
     return user;
   }
 
+  /// Signs in with Apple, linking to the current anonymous account when
+  /// possible so guest-created data carries over.
+  ///
+  /// Apple only returns the user's name on the *first* authorization and lets
+  /// users hide their email behind a private relay address, so
+  /// [_writeAppleProfile] keeps whatever name is already on file rather than
+  /// overwriting it with a placeholder on later sign-ins.
+  Future<User> signInWithApple() async {
+    final current = _auth.currentUser;
+    UserCredential result;
+    if (current != null && current.isAnonymous) {
+      try {
+        result = await current.linkWithProvider(_appleProvider);
+      } on FirebaseAuthException catch (e) {
+        // Apple account already exists — sign into it instead of linking. The
+        // exception carries the credential, so no second Apple prompt is needed.
+        if (e.code == 'credential-already-in-use' ||
+            e.code == 'email-already-in-use') {
+          final credential = e.credential;
+          result = credential != null
+              ? await _auth.signInWithCredential(credential)
+              : await _auth.signInWithProvider(_appleProvider);
+        } else {
+          rethrow;
+        }
+      }
+    } else {
+      result = await _auth.signInWithProvider(_appleProvider);
+    }
+
+    final user = result.user!;
+    final name = await _writeAppleProfile(user);
+    await _backfillAuthorName(user.uid, name);
+    return user;
+  }
+
   /// Updates the current user's display name — the name shown on the public
   /// feed and denormalized onto recipes and shares they've authored. The new
   /// name is propagated onto everything they've already created so their
@@ -115,9 +181,14 @@ class AuthService {
   /// Removes everything the client is allowed to delete under the Firestore
   /// rules — the profile doc, the user's recipes and their comments, categories,
   /// and share snapshots — then deletes the Firebase Auth user itself. Deleting
-  /// the auth user requires a recent sign-in; for Google accounts we transparently
-  /// re-authenticate when Firebase asks. A fresh guest session is started
-  /// afterwards so the app stays usable.
+  /// the auth user requires a recent sign-in; we transparently re-authenticate
+  /// with whichever provider the account uses when Firebase asks. A fresh guest
+  /// session is started afterwards so the app stays usable.
+  ///
+  /// Apple additionally requires apps to **revoke** the Sign in with Apple token
+  /// when an account is deleted. The authorization code that revokes it only
+  /// comes back from a fresh authorization, so Apple accounts re-authorize up
+  /// front rather than waiting for Firebase to demand it.
   ///
   /// Two things are intentionally left behind: abuse *reports* (retained for
   /// moderation integrity — the rules forbid client deletion) and comments the
@@ -127,13 +198,27 @@ class AuthService {
     final user = _auth.currentUser;
     if (user == null) return;
 
+    String? appleAuthorizationCode;
+    if (_isAppleAccount(user)) {
+      final reauth = await _reauthenticate(user);
+      appleAuthorizationCode = reauth?.additionalUserInfo?.authorizationCode;
+    }
+
     await _deleteUserData(user.uid);
+
+    if (appleAuthorizationCode != null) {
+      try {
+        await _auth.revokeTokenWithAuthorizationCode(appleAuthorizationCode);
+      } catch (_) {
+        // Revocation is best-effort: never block the deletion the user asked for.
+      }
+    }
 
     try {
       await user.delete();
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login' && !user.isAnonymous) {
-        await _reauthenticateGoogle(user);
+        await _reauthenticate(user);
         await user.delete();
       } else {
         rethrow;
@@ -149,15 +234,24 @@ class AuthService {
     await ensureSignedIn();
   }
 
-  /// Re-signs in with Google to satisfy Firebase's recent-login requirement
-  /// before a sensitive operation like account deletion.
-  Future<void> _reauthenticateGoogle(User user) async {
+  /// Whether [user] signed in with Apple.
+  bool _isAppleAccount(User user) => user.providerData
+      .any((p) => p.providerId == AppleAuthProvider.PROVIDER_ID);
+
+  /// Re-signs in with whichever provider the account uses, to satisfy
+  /// Firebase's recent-login requirement before a sensitive operation like
+  /// account deletion. Returns the fresh credential, whose
+  /// `additionalUserInfo.authorizationCode` is what revokes an Apple token.
+  Future<UserCredential?> _reauthenticate(User user) async {
+    if (_isAppleAccount(user)) {
+      return user.reauthenticateWithProvider(_appleProvider);
+    }
     await _initGoogle();
     final googleUser = await GoogleSignIn.instance.authenticate();
     final credential = GoogleAuthProvider.credential(
       idToken: googleUser.authentication.idToken,
     );
-    await user.reauthenticateWithCredential(credential);
+    return user.reauthenticateWithCredential(credential);
   }
 
   /// Collects and deletes all Firestore documents owned by [uid].
@@ -232,6 +326,36 @@ class AuthService {
       'isGuest': false,
       'createdAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    return name;
+  }
+
+  /// Writes the Apple profile and returns the display name it stored.
+  ///
+  /// Apple hands over the full name only the first time a user authorizes the
+  /// app (and never when they've chosen to hide their email), so the name is
+  /// resolved in order of preference: what Firebase now holds → the name
+  /// already on the profile → a neutral fallback. Only [name] is written back
+  /// when the account has no other source, which keeps a user's edited name
+  /// intact across sign-ins.
+  Future<String> _writeAppleProfile(User user) async {
+    final ref = _users.doc(user.uid);
+    final existing = (await ref.get()).data()?['name'] as String?;
+    final fromApple = user.displayName?.trim();
+    final name = (fromApple != null && fromApple.isNotEmpty)
+        ? fromApple
+        : (existing != null && existing.isNotEmpty && existing != 'Guest')
+            ? existing
+            : 'Cook';
+    await ref.set({
+      'name': name,
+      // May be an Apple private-relay address when the user hid their email.
+      'email': user.email,
+      'isGuest': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    if (fromApple == null || fromApple.isEmpty) {
+      await user.updateDisplayName(name);
+    }
     return name;
   }
 

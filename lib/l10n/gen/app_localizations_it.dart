@@ -85,17 +85,20 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get profileSignInInfoBody =>
-      'Accedendo con Google, le ricette che hai creato come ospite vengono collegate al tuo account, così puoi aprirle da qualsiasi dispositivo.\n\nLe ricette da ospite esistono solo su questo telefono finché non accedi: accedi qui prima di passare a un nuovo telefono, altrimenti non verranno mantenute.';
+      'Accedendo, le ricette che hai creato come ospite vengono collegate al tuo account, così puoi aprirle da qualsiasi dispositivo.\n\nLe ricette da ospite esistono solo su questo dispositivo finché non accedi: accedi qui prima di passare a un nuovo dispositivo, altrimenti non verranno mantenute.';
 
   @override
   String get profileGuestCardTitle => 'Stai navigando come ospite';
 
   @override
   String get profileGuestCardBody =>
-      'Accedi con Google per mantenere al sicuro le tue ricette e accedervi da qualsiasi dispositivo. Le ricette che hai già creato verranno mantenute.';
+      'Accedi per mantenere al sicuro le tue ricette e accedervi da qualsiasi dispositivo. Le ricette che hai già creato verranno mantenute.';
 
   @override
   String get profileSignInWithGoogle => 'Accedi con Google';
+
+  @override
+  String get profileSignInWithApple => 'Accedi con Apple';
 
   @override
   String get profileSignOut => 'Esci';

@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../l10n/gen/app_localizations.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/providers.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -17,7 +19,18 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _busy = false;
 
-  Future<void> _signInWithGoogle() async {
+  Future<void> _signInWithGoogle() =>
+      _signIn((auth) => auth.signInWithGoogle());
+
+  Future<void> _signInWithApple() => _signIn((auth) => auth.signInWithApple());
+
+  /// Explains what linking a guest account does, then runs [signIn].
+  ///
+  /// Shared by both providers so Sign in with Apple and Sign in with Google are
+  /// equivalent options, as guideline 4.8 requires. A user backing out of the
+  /// provider's own sheet is a normal outcome, not a failure, so cancellations
+  /// pass silently instead of raising an error.
+  Future<void> _signIn(Future<void> Function(AuthService auth) signIn) async {
     final l10n = AppLocalizations.of(context);
     final proceed = await showDialog<bool>(
       context: context,
@@ -40,14 +53,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     setState(() => _busy = true);
     try {
-      await ref.read(authServiceProvider).signInWithGoogle();
+      await signIn(ref.read(authServiceProvider));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.profileSignedIn)),
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && !_isCancellation(e)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.profileSignInFailed(e.toString()))),
         );
@@ -56,6 +69,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  /// Whether [error] is the user dismissing a provider's sign-in sheet.
+  bool _isCancellation(Object error) =>
+      (error is GoogleSignInException &&
+          error.code == GoogleSignInExceptionCode.canceled) ||
+      (error is FirebaseAuthException &&
+          (error.code == 'canceled' ||
+              error.code == 'web-context-canceled' ||
+              error.code == 'user-canceled'));
 
   Future<void> _signOut() async {
     setState(() => _busy = true);
@@ -313,6 +335,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           color: AppColors.textMuted, height: 1.4),
                     ),
                     const SizedBox(height: 16),
+                    // Sign in with Apple sits first on Apple platforms, where
+                    // guideline 4.8 requires it to be offered as an equivalent
+                    // option to the third-party (Google) login.
+                    if (AuthService.supportsAppleSignIn) ...[
+                      _AppleButton(onPressed: _busy ? null : _signInWithApple),
+                      const SizedBox(height: 10),
+                    ],
                     _GoogleButton(onPressed: _busy ? null : _signInWithGoogle),
                   ],
                 ),
@@ -356,6 +385,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _initial(String? name) {
     if (name == null || name.isEmpty) return '🥐';
     return name.characters.first.toUpperCase();
+  }
+}
+
+/// Standard Sign in with Apple button: black fill, white label, Apple logo.
+///
+/// The logo is the U+F8FF glyph, which the system font renders as the Apple
+/// mark — safe here because the button is only built on Apple platforms.
+class _AppleButton extends StatelessWidget {
+  const _AppleButton({required this.onPressed});
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        icon: const Text(
+          '',
+          style: TextStyle(fontSize: 20, color: Colors.white),
+        ),
+        label: Text(AppLocalizations.of(context).profileSignInWithApple),
+      ),
+    );
   }
 }
 

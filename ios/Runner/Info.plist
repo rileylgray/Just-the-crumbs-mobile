@@ -9,6 +9,12 @@
 	<string>ca-app-pub-7855071425983459~5967069120</string>
 	<key>CFBundleDisplayName</key>
 	<string>Just The Crumbs</string>
+	<!-- Google Sign-In client ids. The app also passes these from Dart; keeping
+	     them here means the Google SDK is configured even before that runs. -->
+	<key>GIDClientID</key>
+	<string>1029709252983-7gm8kvrhl3f9usrq2j8mp3klomgmmj2e.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>1029709252983-iaocta8ugt19fbrqlko9a7jftopvlmur.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

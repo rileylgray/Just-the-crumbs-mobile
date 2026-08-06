@@ -84,17 +84,20 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get profileSignInInfoBody =>
-      'Ao entrar com o Google, as receitas que você criou como convidado são vinculadas à sua conta, para que você possa abri-las em qualquer dispositivo.\n\nAs receitas de convidado existem apenas neste telefone até você entrar — então entre aqui antes de trocar de telefone, ou elas não serão mantidas.';
+      'Ao entrar, as receitas que você criou como convidado são vinculadas à sua conta, para que você possa abri-las em qualquer dispositivo.\n\nAs receitas de convidado existem apenas neste dispositivo até você entrar — então entre aqui antes de trocar de dispositivo, ou elas não serão mantidas.';
 
   @override
   String get profileGuestCardTitle => 'Você está navegando como convidado';
 
   @override
   String get profileGuestCardBody =>
-      'Entre com o Google para manter suas receitas seguras e acessá-las em qualquer dispositivo. As receitas que você já criou serão mantidas.';
+      'Entre para manter suas receitas seguras e acessá-las em qualquer dispositivo. As receitas que você já criou serão mantidas.';
 
   @override
   String get profileSignInWithGoogle => 'Entrar com o Google';
+
+  @override
+  String get profileSignInWithApple => 'Entrar com a Apple';
 
   @override
   String get profileSignOut => 'Sair';

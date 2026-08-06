@@ -229,7 +229,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileSignInInfoBody.
   ///
   /// In en, this message translates to:
-  /// **'Signing in with Google links the recipes you\'ve made as a guest to your account, so you can open them on any device.\n\nGuest recipes live only on this phone until you sign in — so sign in here before switching to a new phone, or they won\'t carry over.'**
+  /// **'Signing in links the recipes you\'ve made as a guest to your account, so you can open them on any device.\n\nGuest recipes live only on this device until you sign in — so sign in here before switching to a new device, or they won\'t carry over.'**
   String get profileSignInInfoBody;
 
   /// No description provided for @profileGuestCardTitle.
@@ -241,7 +241,7 @@ abstract class AppLocalizations {
   /// No description provided for @profileGuestCardBody.
   ///
   /// In en, this message translates to:
-  /// **'Sign in with Google to keep your recipes safe and access them on any device. Recipes you\'ve already made will carry over.'**
+  /// **'Sign in to keep your recipes safe and access them on any device. Recipes you\'ve already made will carry over.'**
   String get profileGuestCardBody;
 
   /// No description provided for @profileSignInWithGoogle.
@@ -249,6 +249,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign in with Google'**
   String get profileSignInWithGoogle;
+
+  /// No description provided for @profileSignInWithApple.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with Apple'**
+  String get profileSignInWithApple;
 
   /// No description provided for @profileSignOut.
   ///

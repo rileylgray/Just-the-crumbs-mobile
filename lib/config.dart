@@ -13,6 +13,18 @@ class AppConfig {
         '1029709252983-iaocta8ugt19fbrqlko9a7jftopvlmur.apps.googleusercontent.com',
   );
 
+  /// OAuth **iOS** client ID (`CLIENT_ID` in `GoogleService-Info.plist`, the
+  /// `client_type: 2` entry in google-services.json). Passed explicitly to
+  /// google_sign_in on iOS/macOS: without a client id the Google SDK has no
+  /// configuration and fails the moment the sign-in button is tapped, so we
+  /// don't rely on the plist being bundled. Overridable with
+  /// `--dart-define=GOOGLE_IOS_CLIENT_ID=...`.
+  static const String googleIosClientId = String.fromEnvironment(
+    'GOOGLE_IOS_CLIENT_ID',
+    defaultValue:
+        '1029709252983-7gm8kvrhl3f9usrq2j8mp3klomgmmj2e.apps.googleusercontent.com',
+  );
+
   /// Custom URI scheme for share/deep links. Domain-free: sharing works via a
   /// short code + a `justthecrumbs://share/<code>` link that opens the app.
   static const String deepLinkScheme = 'justthecrumbs';
