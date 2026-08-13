@@ -35,6 +35,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final proceed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        // The body runs to two paragraphs (longer still in German), which an
+        // AlertDialog clips rather than scrolls on a short screen or at a large
+        // text scale. `scrollable` puts title and content in a scroll view so
+        // the whole explanation stays reachable.
+        scrollable: true,
         title: Text(l10n.profileSignInInfoTitle),
         content: Text(l10n.profileSignInInfoBody),
         actions: [
@@ -115,6 +120,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: Text(l10n.profileDeleteAccountTitle),
         content: Text(l10n.profileDeleteAccountBody),
         actions: [
