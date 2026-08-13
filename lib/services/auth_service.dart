@@ -108,10 +108,12 @@ class AuthService {
     }
 
     final user = result.user!;
-    final name = await _writeGoogleProfile(user, googleUser);
-    // A guest's recipes were denormalized with the placeholder 'Guest' name;
-    // now that they've a real identity, refresh those to the real name.
-    await _backfillAuthorName(user.uid, name);
+    await _syncProfileAfterSignIn(() async {
+      final name = await _writeGoogleProfile(user, googleUser);
+      // A guest's recipes were denormalized with the placeholder 'Guest' name;
+      // now that they've a real identity, refresh those to the real name.
+      await _backfillAuthorName(user.uid, name);
+    });
     return user;
   }
 
@@ -129,10 +131,13 @@ class AuthService {
       try {
         result = await current.linkWithProvider(_appleProvider);
       } on FirebaseAuthException catch (e) {
-        // Apple account already exists — sign into it instead of linking. The
-        // exception carries the credential, so no second Apple prompt is needed.
+        // The Apple account already belongs to a Firebase user (or is somehow
+        // already attached to this one) — sign into it instead of linking. When
+        // the exception carries the credential, no second Apple prompt is
+        // needed; otherwise we re-authorize, which also clears the stale state.
         if (e.code == 'credential-already-in-use' ||
-            e.code == 'email-already-in-use') {
+            e.code == 'email-already-in-use' ||
+            e.code == 'provider-already-linked') {
           final credential = e.credential;
           result = credential != null
               ? await _auth.signInWithCredential(credential)
@@ -146,9 +151,28 @@ class AuthService {
     }
 
     final user = result.user!;
-    final name = await _writeAppleProfile(user);
-    await _backfillAuthorName(user.uid, name);
+    await _syncProfileAfterSignIn(() async {
+      final name = await _writeAppleProfile(user);
+      await _backfillAuthorName(user.uid, name);
+    });
     return user;
+  }
+
+  /// Runs the post-sign-in profile bookkeeping without letting it fail the
+  /// sign-in itself.
+  ///
+  /// By the time [sync] runs the user **is** authenticated. Writing the profile
+  /// doc and refreshing denormalized author names are follow-up Firestore
+  /// operations, and a hiccup there (offline, a transient permission error)
+  /// used to surface to the user as "Sign-in failed" on a sign-in that had
+  /// actually succeeded. None of the work is lost: it runs again on the next
+  /// sign-in or rename.
+  Future<void> _syncProfileAfterSignIn(Future<void> Function() sync) async {
+    try {
+      await sync();
+    } catch (e) {
+      debugPrint('Post-sign-in profile sync failed (sign-in itself was OK): $e');
+    }
   }
 
   /// Updates the current user's display name — the name shown on the public

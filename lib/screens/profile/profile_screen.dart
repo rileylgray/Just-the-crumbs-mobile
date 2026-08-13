@@ -62,7 +62,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } catch (e) {
       if (mounted && !_isCancellation(e)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.profileSignInFailed(e.toString()))),
+          SnackBar(content: Text(l10n.profileSignInFailed(_describe(e)))),
         );
       }
     } finally {
@@ -71,13 +71,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   /// Whether [error] is the user dismissing a provider's sign-in sheet.
+  ///
+  /// Apple's `ASAuthorizationController` reports a dismissal as `canceled`, and
+  /// as `not-handled` when the sheet is torn down before it can present (for
+  /// example when the app is backgrounded mid-flow). Neither is a failure the
+  /// user should be told about.
   bool _isCancellation(Object error) =>
       (error is GoogleSignInException &&
           error.code == GoogleSignInExceptionCode.canceled) ||
       (error is FirebaseAuthException &&
           (error.code == 'canceled' ||
               error.code == 'web-context-canceled' ||
-              error.code == 'user-canceled'));
+              error.code == 'user-canceled' ||
+              error.code == 'not-handled'));
+
+  /// A readable one-line description of a sign-in failure.
+  ///
+  /// `FirebaseAuthException.toString()` renders as a bracketed plugin dump,
+  /// which reads as a crash to anyone who sees it. The provider's own message
+  /// is shown instead, with the code kept in parentheses so a report of the
+  /// failure is still enough to identify it.
+  String _describe(Object error) {
+    if (error is FirebaseAuthException) {
+      final message = error.message?.trim();
+      return (message == null || message.isEmpty)
+          ? error.code
+          : '$message (${error.code})';
+    }
+    return error.toString();
+  }
 
   Future<void> _signOut() async {
     setState(() => _busy = true);
