@@ -5,6 +5,18 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../config.dart';
 
+/// The single ad request used for every ad in the app.
+///
+/// `nonPersonalizedAds: true` keeps AdMob out of behavioural targeting: no
+/// interest profile, and no use of the advertising identifier to link this
+/// app's data with third-party data. That is what App Store guideline
+/// 5.1.2(i) calls "tracking", so requesting non-personalized ads is precisely
+/// why the app needs no App Tracking Transparency prompt — and why the App
+/// Store Connect privacy labels declare that no collected data is used to
+/// track. Flipping this back to personalized ads means adding an ATT request
+/// *and* updating those labels, or the next submission gets rejected again.
+const adRequest = AdRequest(nonPersonalizedAds: true);
+
 /// Loads and shows interstitial ("popup") ads at natural transition points.
 ///
 /// One instance is created at app start (see `providers.dart`). It keeps a
@@ -30,7 +42,7 @@ class InterstitialAdManager {
     _loading = true;
     InterstitialAd.load(
       adUnitId: AdConfig.interstitialUnitId(_isIOS),
-      request: const AdRequest(),
+      request: adRequest,
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
           _ad = ad;

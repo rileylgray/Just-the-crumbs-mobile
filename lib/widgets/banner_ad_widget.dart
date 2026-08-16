@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../config.dart';
+import '../services/ad_service.dart';
 
 /// A persistent AdMob banner. Reserves no space until an ad has loaded, so it
 /// never leaves an empty gray strip if loading fails or the platform is
@@ -43,7 +44,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
     final ad = BannerAd(
       adUnitId: AdConfig.bannerUnitId(isIOS),
       size: size ?? AdSize.banner,
-      request: const AdRequest(),
+      request: adRequest,
       listener: BannerAdListener(
         onAdLoaded: (_) {
           if (mounted) setState(() => _loaded = true);
