@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../config.dart';
 import '../../models/recipe.dart';
@@ -54,6 +55,15 @@ class GeminiRecipeParser {
   static final LinkedHashMap<String, AiParsedRecipe> _cache = LinkedHashMap();
   static const int _cacheLimit = 50;
 
+  /// One retry for a failed request. An import that reaches this parser has
+  /// already come up short on heuristics, so losing the call means the recipe
+  /// degrades to "watch the video" — worth a second attempt when the first
+  /// throws. A cold start is where this bites: the request races app launch,
+  /// with the Firebase auth token the SDK attaches, DNS and TLS all still
+  /// settling. A model that simply had nothing to say is not retried.
+  static const int _maxAttempts = 2;
+  static const Duration _retryDelay = Duration(milliseconds: 600);
+
   Future<AiParsedRecipe?> call(String rawText) async {
     if (!AiConfig.importAssistEnabled) return null;
     // Needs an initialized Firebase app; absent in unit tests, so bail quietly.
@@ -68,56 +78,73 @@ class GeminiRecipeParser {
     final cached = _cache[key];
     if (cached != null) return cached;
 
-    try {
-      final model = FirebaseAI.googleAI().generativeModel(
-        model: AiConfig.model,
-        systemInstruction: Content.system(_systemPrompt),
-        generationConfig: GenerationConfig(
-          temperature: 0.2,
-          responseMimeType: 'application/json',
-          responseSchema: Schema.object(
-            properties: {
-              'title': Schema.string(),
-              'ingredientGroups': Schema.array(
-                items: Schema.object(
-                  properties: {
-                    'title': Schema.string(),
-                    'items': Schema.array(items: Schema.string()),
-                  },
-                ),
-              ),
-              'steps': Schema.array(items: Schema.string()),
-            },
-          ),
-        ),
-      );
-
-      final response = await model
-          .generateContent([Content.text(key)]).timeout(
-              const Duration(seconds: 20));
-
-      final raw = response.text;
-      if (raw == null || raw.trim().isEmpty) return null;
-
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) return null;
-
-      final parsed = AiParsedRecipe.grouped(
-        title: (decoded['title'] ?? '').toString().trim(),
-        ingredientGroups: _groups(decoded),
-        steps: _stringList(decoded['steps']),
-      );
-
-      // A "no recipe here" answer is as good as no answer to the caller.
-      if (parsed.ingredients.isEmpty && parsed.steps.isEmpty) return null;
-
-      _remember(key, parsed);
-      return parsed;
-    } catch (_) {
-      // Network error, quota exhausted, malformed JSON, safety block, etc.
-      // The caller keeps its heuristic result, so degrade silently.
-      return null;
+    for (var attempt = 1; attempt <= _maxAttempts; attempt++) {
+      try {
+        final parsed = await _generate(key);
+        if (parsed == null) return null;
+        _remember(key, parsed);
+        return parsed;
+      } catch (error) {
+        if (attempt < _maxAttempts) {
+          await Future<void>.delayed(_retryDelay);
+          continue;
+        }
+        // Network error, quota exhausted, malformed JSON, safety block, etc.
+        // The caller keeps its heuristic result, so degrade silently — but say
+        // so in the log, because from the outside a silent degrade and a
+        // working parse are both just "the recipe came out thin".
+        debugPrint('AI recipe parse failed: $error');
+      }
     }
+    return null;
+  }
+
+  /// One request to the model. Returns `null` when the model answered with
+  /// nothing usable; throws when the request itself failed.
+  Future<AiParsedRecipe?> _generate(String key) async {
+    final model = FirebaseAI.googleAI().generativeModel(
+      model: AiConfig.model,
+      systemInstruction: Content.system(_systemPrompt),
+      generationConfig: GenerationConfig(
+        temperature: 0.2,
+        responseMimeType: 'application/json',
+        responseSchema: Schema.object(
+          properties: {
+            'title': Schema.string(),
+            'ingredientGroups': Schema.array(
+              items: Schema.object(
+                properties: {
+                  'title': Schema.string(),
+                  'items': Schema.array(items: Schema.string()),
+                },
+              ),
+            ),
+            'steps': Schema.array(items: Schema.string()),
+          },
+        ),
+      ),
+    );
+
+    final response = await model
+        .generateContent([Content.text(key)]).timeout(
+            const Duration(seconds: 20));
+
+    final raw = response.text;
+    if (raw == null || raw.trim().isEmpty) return null;
+
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) return null;
+
+    final parsed = AiParsedRecipe.grouped(
+      title: (decoded['title'] ?? '').toString().trim(),
+      ingredientGroups: _groups(decoded),
+      steps: _stringList(decoded['steps']),
+    );
+
+    // A "no recipe here" answer is as good as no answer to the caller.
+    if (parsed.ingredients.isEmpty && parsed.steps.isEmpty) return null;
+
+    return parsed;
   }
 
   void _remember(String key, AiParsedRecipe recipe) {

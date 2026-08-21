@@ -68,6 +68,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
       _error = null;
     });
     try {
+      await _waitForSession();
       final imported = await RecipeImportService(url).call();
       if (!mounted) return;
       // Hand off to the form for review & save.
@@ -79,17 +80,45 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     }
   }
 
+  /// Waits, briefly, for the startup guest sign-in to land.
+  ///
+  /// A share opens this screen while the app is still booting, and the import's
+  /// AI step sends the signed-in user's ID token — so a cold start would
+  /// otherwise run the import unauthenticated while a warm one doesn't, which
+  /// is the difference between a parsed recipe and "watch the video".
+  ///
+  /// Waits on the auth user rather than the app's whole startup sign-in, which
+  /// also syncs a Firestore profile document and can stall offline. Only the AI
+  /// step benefits from any of this, so failure or slowness is not fatal.
+  Future<void> _waitForSession() async {
+    final auth = ref.read(firebaseAuthProvider);
+    if (auth.currentUser != null) return;
+    try {
+      await auth
+          .authStateChanges()
+          .firstWhere((user) => user != null)
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Still no session: import anyway, heuristics-only if it comes to that.
+    }
+  }
+
   /// Maps a raw import failure to a friendly, localized message. Network/timeout
-  /// problems (including the service's `'Error importing recipe: …'` wrapper) get
-  /// a "check your connection" message; anything else means we reached the page
-  /// but couldn't find a recipe on it.
+  /// problems get a "check your connection" message; anything else means we
+  /// reached the page but couldn't find a recipe on it.
+  ///
+  /// The services wrap a failed fetch in a string rather than rethrowing, so
+  /// those are matched on their shared `'Error importing …'` prefix — both
+  /// `'Error importing recipe: …'` and TikTok's `'Error importing TikTok
+  /// recipe: …'`. Matching only the former is what made every failed TikTok
+  /// fetch report itself as "no recipe on that page".
   String _friendlyError(AppLocalizations l10n, Object error) {
     final isNetwork =
         error is TimeoutException ||
         error is SocketException ||
         error is http.ClientException ||
         error is HandshakeException ||
-        (error is String && error.startsWith('Error importing recipe'));
+        (error is String && error.startsWith('Error importing'));
     return isNetwork ? l10n.importNetworkError : l10n.importReadError;
   }
 

@@ -179,6 +179,71 @@ void main() {
       expect(result.steps.length, 1);
     });
 
+    test('recovers the line breaks the reflow page collapses to spaces',
+        () async {
+      // Verbatim from https://vt.tiktok.com/ZSVPADkS6/ — the reflow page hands
+      // back `desc` with every newline flattened into a run of spaces, so the
+      // whole INGREDIENTS block used to arrive as one line (and the tail of it
+      // was then dropped for exceeding the per-ingredient length cap).
+      const desc =
+          'If you need an easy dinner recipe using a pound of ground beef, '
+          'this Sloppy Joe Potato Skillet won’t disappoint!  INGREDIENTS  '
+          '5 small/medium potatoes olive oil + salt, pepper, garlic powder, '
+          'and paprika (for potatoes) 1 lb ground beef  1 chopped onion  '
+          '1/2 tsp each of salt and pepper  1 tsp onion powder and paprika  '
+          '1 tbsp minced garlic  1-2 tbsp Worcestershire  8 oz can tomato '
+          'sauce  1/4 cup ketchup  1 tbsp mustard  2 tbsp bbq sauce  '
+          '1 1/2 cups shredded Colby Jack cheese  Dried parsley  INSTRUCTIONS  '
+          'Peel, wash, and cut potatoes up into cubes.  Toss them with olive '
+          'oil, salt, pepper, garlic powder, and paprika (I don’t use '
+          'exact measurements for this part).  Cook the potatoes in the air '
+          'fryer at 400 degrees F for about 20-25 minutes shaking them around '
+          'at least a couple of times while they cook.  Once the potatoes are '
+          'cooking, brown the ground beef and onion in a skillet and add all '
+          'seasonings.  Add minced garlic, Worcestershire, tomato sauce, '
+          'ketchup, mustard, and bbq sauce. Let simmer on low until the '
+          'potatoes are ready.  Add crispy potatoes to the skillet with the '
+          'sloppy joe mix and give it a quick stir. Sprinkle shredded cheese '
+          'on top and put in the oven under broil just to melt the cheese.  '
+          'Enjoy! #easyrecipes #dinner #sloppyjoes ';
+
+      final result = await RecipeImportService(
+        'https://www.tiktok.com/@cookinginthemidwest/video/123',
+        client: _router(
+            _tiktokPage(desc, scope: 'webapp.reflow.video.detail')),
+      ).call();
+
+      // The dish name out of the hook line, not the first 90 characters of it.
+      expect(result.title, 'Sloppy Joe Potato Skillet');
+      // Every ingredient line survives, including the ones that used to be
+      // swallowed by the over-long trailing fragment.
+      expect(result.ingredients, [
+        '5 small/medium potatoes olive oil + salt, pepper, garlic powder, '
+            'and paprika (for potatoes)',
+        '1 lb ground beef',
+        '1 chopped onion',
+        '1/2 tsp each of salt and pepper',
+        '1 tsp onion powder and paprika',
+        '1 tbsp minced garlic',
+        '1-2 tbsp Worcestershire',
+        '8 oz can tomato sauce',
+        '1/4 cup ketchup',
+        '1 tbsp mustard',
+        '2 tbsp bbq sauce',
+        '1 1/2 cups shredded Colby Jack cheese',
+        'Dried parsley',
+      ]);
+      expect(result.steps.length, 7);
+      expect(result.steps.first, 'Peel, wash, and cut potatoes up into cubes.');
+      // A punctuated step is split on its sentences, never mid-phrase (the
+      // clause segmenter used to cut "the sloppy joe mix" at "mix").
+      expect(result.steps.last,
+          'Sprinkle shredded cheese on top and put in the oven under broil '
+          'just to melt the cheese.');
+      // "Enjoy!" plus hashtags is not a step.
+      expect(result.steps.any((s) => s.startsWith('Enjoy')), isFalse);
+    });
+
     test('splits a description that names its parts into groups', () async {
       final desc = 'Chicken Katsu Bowls\n'
           'Ingredients:\n'

@@ -287,10 +287,18 @@ class TiktokImportService {
       if (_isIngredientsHeader(lines[i]) || _isStepsHeader(lines[i])) continue;
       final candidate = _baseClean(lines[i]);
       if (candidate.length < 3) continue;
-      title = _dishNameFromIntro(candidate) ??
-          _capitalize(candidate.length > 90
-              ? candidate.substring(0, 90).trim()
-              : candidate);
+      final named =
+          _dishNameFromIntro(candidate) ?? _dishNameFromHook(candidate);
+      if (named != null) {
+        title = named;
+        titleIdx = i;
+        break;
+      }
+      // A promo/hook paragraph that names no dish is not a title. Creators put
+      // the dish name on the line *after* it, so keep looking rather than
+      // truncating the pitch — but never past the last line.
+      if (_isHookParagraph(candidate) && i + 1 < lines.length) continue;
+      title = _capitalize(_truncateTitle(candidate));
       titleIdx = i;
       break;
     }
@@ -330,6 +338,42 @@ class TiktokImportService {
     if (candidate.length < 3 || candidate.length > 60) return null;
     if (candidate.split(RegExp(r'\s+')).length > 8) return null;
     return _capitalize(candidate);
+  }
+
+  /// A hook paragraph names the dish in passing — "…if you need an easy dinner
+  /// recipe, this Sloppy Joe Potato Skillet won't disappoint!". Return that noun
+  /// phrase so the title is the dish rather than the first 90 characters of the
+  /// pitch; `null` when the sentence names nothing specific.
+  String? _dishNameFromHook(String paragraph) {
+    if (paragraph.length <= 90) return null;
+    final m = _hookDishName.firstMatch(paragraph);
+    if (m == null) return null;
+    final candidate = _baseClean(m.group(1)!);
+    if (candidate.length < 3 || candidate.length > 60) return null;
+    final words = candidate.split(RegExp(r'\s+'));
+    if (words.length > 8) return null;
+    // "this recipe is…" names the video, not the dish.
+    if (words.every((w) => _genericDishWords.contains(_wordToken(w)))) {
+      return null;
+    }
+    return _capitalize(candidate);
+  }
+
+  /// A long lead paragraph that only pitches the video ("…full recipe down
+  /// below, link in my bio") rather than naming the dish.
+  bool _isHookParagraph(String candidate) =>
+      candidate.length > 90 &&
+      (_outroChatter.hasMatch(candidate) ||
+          _introChatter.hasMatch(candidate) ||
+          _placeholderStep.hasMatch(candidate));
+
+  /// Trims an over-long candidate title back to a word boundary, so the
+  /// fallback reads as a phrase instead of stopping mid-word.
+  String _truncateTitle(String candidate) {
+    if (candidate.length <= 90) return candidate;
+    final cut = candidate.substring(0, 90);
+    final lastSpace = cut.lastIndexOf(' ');
+    return (lastSpace > 40 ? cut.substring(0, lastSpace) : cut).trim();
   }
 
   /// Guards the prose fallback: a genuine recipe reads as several cooking
@@ -759,10 +803,16 @@ class TiktokImportService {
     if (!steps.any(_looksLikeProse)) return steps;
     final out = <String>[];
     for (final s in steps) {
-      if (_looksLikeProse(s)) {
-        out.addAll(_segmentProse(s));
-      } else {
+      if (!_looksLikeProse(s)) {
         out.add(s);
+      } else if (_sentenceBreak.hasMatch(s)) {
+        // Properly punctuated prose already carries its own step boundaries.
+        // The clause segmenter below is tuned for unpunctuated transcripts and
+        // would cut this at any cooking verb — mid-ingredient, in "the sloppy
+        // joe mix" — so split it on its sentences instead.
+        out.addAll(s.split(_sentenceSplit));
+      } else {
+        out.addAll(_segmentProse(s));
       }
     }
     return _finalizeSteps(out);
@@ -830,8 +880,17 @@ class TiktokImportService {
   }
 
   /// Splits a single "line" that actually packs several ingredients — bullet
-  /// separated, or comma separated with multiple quantities.
+  /// separated, comma separated with multiple quantities, or run together where
+  /// a line break was lost.
   List<String> _explode(String line) {
+    final out = <String>[];
+    for (final part in line.split(_embeddedQuantity)) {
+      out.addAll(_explodeSeparators(part));
+    }
+    return out;
+  }
+
+  List<String> _explodeSeparators(String line) {
     if (_bullet.hasMatch(line)) {
       return line.split(_bulletSplit);
     }
@@ -870,6 +929,7 @@ class TiktokImportService {
   /// single-line description (common in `og:description`) still segments.
   String _preNormalize(String text) {
     var t = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    t = _restoreCollapsedLines(t);
     t = t.replaceAllMapped(
       RegExp(
         r'(?<=\S)\s+((?:Other |Additional |Extra |More )?Ingredients?|Instructions?|Directions?|Method|Steps?|You.?ll(?: also)? need|What you.?ll need|What I used)\b',
@@ -882,6 +942,19 @@ class TiktokImportService {
       (m) => '\n${m.group(1)} ',
     );
     return t;
+  }
+
+  /// Puts back the line breaks TikTok's share ("reflow") page strips out.
+  ///
+  /// A `vt.tiktok.com` link resolves to that page, and its hydration JSON
+  /// returns `desc` with every newline collapsed into a run of spaces — so a
+  /// caption the creator typed as a tidy `INGREDIENTS` list arrives as one
+  /// run-on line, and the whole ingredient block gets read as a single
+  /// ingredient. A run of two or more spaces is where a break was, so restore
+  /// it. Descriptions that still carry real newlines are left alone.
+  String _restoreCollapsedLines(String text) {
+    if (text.contains('\n')) return text;
+    return text.replaceAll(RegExp(r' {2,}'), '\n');
   }
 
   List<String> _toLines(String text) {
@@ -972,6 +1045,22 @@ class TiktokImportService {
     caseSensitive: false,
   );
   static final _hashtag = RegExp(r'[#@][\w]+');
+  static final _sentenceBreak = RegExp(r'[.!?]\s');
+  static final _sentenceSplit = RegExp(r'(?<=[.!?])\s+');
+
+  /// A measured quantity starting mid-line, i.e. where the newline between two
+  /// ingredients was lost ("…(for potatoes) 1 lb ground beef"). Only a number
+  /// immediately followed by a unit counts, so quantities that legitimately sit
+  /// inside one ingredient ("cheese, 8 oz block" is still one line unless a
+  /// word ends first) and prose numbers don't split anything.
+  static final _embeddedQuantity = RegExp(
+    r'(?<=[a-z\)\]])\s+'
+    r'(?=(?:\d+(?:[ ./]\d+)?|[½⅓⅔¼¾⅛⅜⅝⅞])\s*'
+    r'(?:cups?|tbsps?|tablespoons?|tsps?|teaspoons?|oz|ounces?|lbs?|lb|pounds?'
+    r'|grams?|g|kg|ml|cloves?|cans?|sticks?|slices?|pinch|dash|handful|bunch)'
+    r'\b)',
+    caseSensitive: false,
+  );
 
   /// Every character creators reach for as a list bullet. Beyond the obvious
   /// dots this has to cover the ones phone keyboards and note apps insert —
@@ -1043,6 +1132,23 @@ class TiktokImportService {
     'not', 'is', 'was', 'will', 'been', 'what', 'next', 'here', 'just', 'um',
     'uh', 'like', 'gonna', 'currently', 'of', 'to', 'in', 'on', 'up', 'well',
     'again',
+  };
+
+  /// `this <dish> won't disappoint` / `these <dish> are so good` — the dish
+  /// name a hook line drops before its verb.
+  static final _hookDishName = RegExp(
+    r"\b(?:this|these)\s+([a-z][a-z0-9'’\-& ]{2,60}?)\s+"
+    r"(?:won['’]?t|will\s+(?:not|never)|is|are|was|were|never|always"
+    r"|comes together|takes|has|have|hits|needs|deserves)\b",
+    caseSensitive: false,
+  );
+
+  /// Words that name the video rather than the food, so a hook built only out
+  /// of them ("this recipe is…") yields no title.
+  static const _genericDishWords = {
+    'recipe', 'recipes', 'dish', 'meal', 'dinner', 'lunch', 'breakfast',
+    'one', 'video', 'thing', 'food', 'easy', 'quick', 'simple', 'my', 'the',
+    'a', 'an', 'is', 'it', 'that', 'best', 'little',
   };
 
   static final _introChatter = RegExp(
