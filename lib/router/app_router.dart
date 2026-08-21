@@ -20,6 +20,14 @@ final _shellKey = GlobalKey<NavigatorState>();
 final appRouter = GoRouter(
   navigatorKey: _rootKey,
   initialLocation: '/recipes',
+  // A location that matches nothing throws by default, which in a release build
+  // means a broken app rather than a broken link. Land on the recipe list
+  // instead — routes here are reached from deep links and share sheets, so bad
+  // input arrives from outside the app.
+  onException: (context, state, router) {
+    debugPrint('No route for ${state.uri}: ${state.error}');
+    router.go('/recipes');
+  },
   routes: [
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) =>

@@ -60,9 +60,13 @@ class ShareViewController: UIViewController {
     }
 
     private func finish(with text: String?) {
-        if let text, !text.isEmpty,
-           let url = URL(string: "justthecrumbs://import?text=\(percentEncoded(text))") {
-            openHostApp(url)
+        // No text means nothing to import, so don't bother opening the app.
+        if let text = text, !text.isEmpty {
+            let encoded = percentEncoded(text)
+            if !encoded.isEmpty,
+               let url = URL(string: "justthecrumbs://import?text=\(encoded)") {
+                openHostApp(url)
+            }
         }
         extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
     }

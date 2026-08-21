@@ -22,6 +22,14 @@
 	<string>1029709252983-7gm8kvrhl3f9usrq2j8mp3klomgmmj2e.apps.googleusercontent.com</string>
 	<key>GIDServerClientID</key>
 	<string>1029709252983-iaocta8ugt19fbrqlko9a7jftopvlmur.apps.googleusercontent.com</string>
+	<!-- Flutter's own deep linking hands the raw incoming URI to the app's
+	     Router. Our links are custom-scheme (justthecrumbs://share/…,
+	     justthecrumbs://import?…) and aren't go_router paths, so that only
+	     produces "no routes for location". app_links reads the same URL and
+	     CrumbsApp turns it into a real route; this switches off the duplicate.
+	     Mirrored by flutter_deeplinking_enabled in AndroidManifest.xml. -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

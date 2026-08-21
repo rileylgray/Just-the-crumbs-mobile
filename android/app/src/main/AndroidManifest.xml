@@ -20,6 +20,18 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+
+            <!-- Flutter's own deep linking is on by default since 3.27, and it
+                 feeds the raw incoming URI straight to the app's Router. Our
+                 links are custom-scheme (justthecrumbs://share/…,
+                 justthecrumbs://import?…) and don't correspond to go_router
+                 paths, so that only produces "no routes for location". The
+                 app_links plugin reads the same intent and CrumbsApp turns it
+                 into a real route; this switches off the duplicate. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

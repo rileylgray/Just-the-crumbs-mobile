@@ -76,19 +76,28 @@ class _CrumbsAppState extends ConsumerState<CrumbsApp> {
       appRouter.push('/share/$code');
       return;
     }
-    final link = _importLinkFromUri(uri);
-    if (link != null) {
-      appRouter.push('/recipes/import?url=${Uri.encodeQueryComponent(link)}');
-    }
+    if (!_isImportUri(uri)) return;
+    // Open the import screen either way: if the shared text held no link there
+    // is nothing to prefill, but a share that silently did nothing looks like
+    // the app is broken.
+    final link = _sharedLinkFromUri(uri);
+    appRouter.push(
+      link == null
+          ? '/recipes/import'
+          : '/recipes/import?url=${Uri.encodeQueryComponent(link)}',
+    );
   }
 
-  /// Extract the recipe link from `justthecrumbs://import?text=<shared text>`,
-  /// which is what the share-sheet hand-off turns into on both platforms — the
-  /// Android activity rewrites the SEND intent into this URL, and the iOS share
-  /// extension opens it. The payload is whatever the sharing app handed over
-  /// (usually a caption with the link buried in it), so pull the link out.
-  String? _importLinkFromUri(Uri uri) {
-    if (uri.scheme != 'justthecrumbs' || uri.host != 'import') return null;
+  /// `justthecrumbs://import?text=<shared text>` is what the share-sheet
+  /// hand-off turns into on both platforms — the Android activity rewrites the
+  /// SEND intent into this URL, and the iOS share extension opens it.
+  bool _isImportUri(Uri uri) =>
+      uri.scheme == 'justthecrumbs' && uri.host == 'import';
+
+  /// The recipe link inside a share. The payload is whatever the sharing app
+  /// handed over — usually a caption with the link buried in it — so the link
+  /// has to be picked out of it.
+  String? _sharedLinkFromUri(Uri uri) {
     final shared = uri.queryParameters['text'] ?? uri.queryParameters['url'];
     return shared == null ? null : firstLinkIn(shared);
   }

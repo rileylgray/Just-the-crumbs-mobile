@@ -20,10 +20,29 @@ class MainActivity : FlutterActivity() {
      */
     private fun rewriteShareIntent(intent: Intent?) {
         if (intent == null || intent.action != Intent.ACTION_SEND) return
-        val shared = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return
+        val shared = sharedTextFrom(intent) ?: return
         intent.action = Intent.ACTION_VIEW
         intent.data = Uri.parse("justthecrumbs://import?text=" + Uri.encode(shared))
         intent.removeExtra(Intent.EXTRA_TEXT)
+    }
+
+    /**
+     * The shared text, or null when the share carried none — in which case the
+     * intent is left alone rather than rewritten into a link with nothing in it.
+     *
+     * EXTRA_TEXT is where a share sheet normally puts it, but some apps only
+     * fill in the clip data, so that is checked too. Only `item.text` is read:
+     * `coerceToText` would go and open a content provider on the main thread.
+     */
+    private fun sharedTextFrom(intent: Intent): String? {
+        val extra = intent.getStringExtra(Intent.EXTRA_TEXT)
+        if (!extra.isNullOrBlank()) return extra
+        val clip = intent.clipData ?: return null
+        for (i in 0 until clip.itemCount) {
+            val text = clip.getItemAt(i).text?.toString()
+            if (!text.isNullOrBlank()) return text
+        }
+        return null
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
