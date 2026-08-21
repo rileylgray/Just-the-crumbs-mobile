@@ -15,7 +15,12 @@ import '../../widgets/offline_banner.dart';
 /// Paste a recipe URL, fetch + parse it client-side, then hand off to the form
 /// pre-filled for review. Mirrors the Rails import flow.
 class ImportScreen extends ConsumerStatefulWidget {
-  const ImportScreen({super.key});
+  const ImportScreen({super.key, this.initialUrl});
+
+  /// A link the screen was opened with, from another app's share sheet
+  /// ("Share → Just The Crumbs" on a TikTok video). Importing starts on its
+  /// own in that case — the user already picked the recipe.
+  final String? initialUrl;
 
   @override
   ConsumerState<ImportScreen> createState() => _ImportScreenState();
@@ -25,6 +30,17 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   final _url = TextEditingController();
   bool _loading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final shared = widget.initialUrl?.trim();
+    if (shared == null || shared.isEmpty) return;
+    _url.text = shared;
+    // After the first frame: _import() needs a context that can reach the
+    // localizations and the router.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _import());
+  }
 
   @override
   void dispose() {
@@ -104,7 +120,9 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                 TextField(
                   controller: _url,
                   keyboardType: TextInputType.url,
-                  autofocus: true,
+                  // A shared link is already in the field, so don't throw the
+                  // keyboard up over the import that's already running.
+                  autofocus: widget.initialUrl == null,
                   decoration: InputDecoration(
                     labelText: l10n.importUrlLabel,
                     hintText: l10n.importUrlHint,

@@ -47,22 +47,36 @@ class ShareViewController: UIViewController {
 
         let type = provider.hasItemConformingToTypeIdentifier(urlType) ? urlType : textType
         provider.loadItem(forTypeIdentifier: type, options: nil) { item, _ in
-            switch item {
-            case let url as URL: completion(url.absoluteString)
-            case let text as String: completion(text)
-            case let data as Data: completion(String(data: data, encoding: .utf8))
-            default: completion(nil)
+            if let url = item as? URL {
+                completion(url.absoluteString)
+            } else if let text = item as? String {
+                completion(text)
+            } else if let data = item as? Data {
+                completion(String(data: data, encoding: .utf8))
+            } else {
+                completion(nil)
             }
         }
     }
 
     private func finish(with text: String?) {
         if let text, !text.isEmpty,
-           var components = URLComponents(string: "justthecrumbs://import") {
-            components.queryItems = [URLQueryItem(name: "text", value: text)]
-            if let url = components.url { openHostApp(url) }
+           let url = URL(string: "justthecrumbs://import?text=\(percentEncoded(text))") {
+            openHostApp(url)
         }
         extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
+    }
+
+    /// Percent-encodes everything but the unreserved characters.
+    ///
+    /// Not `URLComponents.queryItems`: that encodes against `urlQueryAllowed`,
+    /// which permits `&`, `=` and `+` — so a shared TikTok link carrying its own
+    /// query string (`…/video/1?is_from_webapp=1&sender_device=pc`) would arrive
+    /// on the Dart side cut off at the first `&`.
+    private func percentEncoded(_ text: String) -> String {
+        let unreserved = CharacterSet(charactersIn:
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        return text.addingPercentEncoding(withAllowedCharacters: unreserved) ?? ""
     }
 
     /// Opens a URL from inside an app extension.

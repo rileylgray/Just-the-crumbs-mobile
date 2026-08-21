@@ -13,6 +13,7 @@ import 'providers/locale_provider.dart';
 import 'providers/providers.dart';
 import 'router/app_router.dart';
 import 'services/consent_service.dart';
+import 'services/import/shared_link.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -61,15 +62,35 @@ class _CrumbsAppState extends ConsumerState<CrumbsApp> {
     _initDeepLinks();
   }
 
-  Future<void> _initDeepLinks() async {
+  void _initDeepLinks() {
+    // The stream covers a cold start too: app_links holds the launch link and
+    // replays it to the first listener on both platforms. Also asking for
+    // getInitialLink() would deliver it a second time, which for a shared
+    // recipe means two import screens and two imports of the same link.
     _appLinks.uriLinkStream.listen(_handleUri);
-    final initial = await _appLinks.getInitialLink();
-    if (initial != null) _handleUri(initial);
   }
 
   void _handleUri(Uri uri) {
     final code = _shareCodeFromUri(uri);
-    if (code != null) appRouter.push('/share/$code');
+    if (code != null) {
+      appRouter.push('/share/$code');
+      return;
+    }
+    final link = _importLinkFromUri(uri);
+    if (link != null) {
+      appRouter.push('/recipes/import?url=${Uri.encodeQueryComponent(link)}');
+    }
+  }
+
+  /// Extract the recipe link from `justthecrumbs://import?text=<shared text>`,
+  /// which is what the share-sheet hand-off turns into on both platforms — the
+  /// Android activity rewrites the SEND intent into this URL, and the iOS share
+  /// extension opens it. The payload is whatever the sharing app handed over
+  /// (usually a caption with the link buried in it), so pull the link out.
+  String? _importLinkFromUri(Uri uri) {
+    if (uri.scheme != 'justthecrumbs' || uri.host != 'import') return null;
+    final shared = uri.queryParameters['text'] ?? uri.queryParameters['url'];
+    return shared == null ? null : firstLinkIn(shared);
   }
 
   /// Extract a share code from `justthecrumbs://share/<code>` (code in the

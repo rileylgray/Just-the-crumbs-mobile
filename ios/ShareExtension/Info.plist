@@ -28,12 +28,13 @@
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<!-- Offer the app whenever a single web link is shared (TikTok,
-			     Safari, Instagram…), or plain text that may contain one. -->
+			     Safari, Instagram…), or plain text that may contain one.
+			     Deliberately no NSExtensionActivationSupportsWebPageWithMaxCount:
+			     that hands over a property list from a JavaScript preprocessing
+			     file rather than a URL, which is not what this reads. -->
 			<key>NSExtensionActivationRule</key>
 			<dict>
 				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
-				<integer>1</integer>
-				<key>NSExtensionActivationSupportsWebPageWithMaxCount</key>
 				<integer>1</integer>
 				<key>NSExtensionActivationSupportsText</key>
 				<true/>

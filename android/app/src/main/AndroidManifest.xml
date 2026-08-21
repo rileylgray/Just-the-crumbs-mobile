@@ -32,6 +32,17 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="justthecrumbs"/>
             </intent-filter>
+
+            <!-- Puts the app in the share sheet: "Share → Just The Crumbs" from
+                 TikTok (and anything else that shares a link as plain text).
+                 MainActivity rewrites the incoming SEND intent into the
+                 justthecrumbs://import deep link the Dart side already listens
+                 for, so the shared link lands on the import screen. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
         </activity>
         <!-- AdMob application ID (real Just The Crumbs Android app ID). -->
         <meta-data

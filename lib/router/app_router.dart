@@ -60,10 +60,13 @@ final appRouter = GoRouter(
       builder: (context, state) =>
           RecipeFormScreen(initial: state.extra as ImportedRecipe?),
     ),
+    // `?url=` is set when the screen is opened from a share sheet
+    // (justthecrumbs://import) — see CrumbsApp's deep-link handling.
     GoRoute(
       path: '/recipes/import',
       parentNavigatorKey: _rootKey,
-      builder: (context, state) => const ImportScreen(),
+      builder: (context, state) =>
+          ImportScreen(initialUrl: state.uri.queryParameters['url']),
     ),
     GoRoute(
       path: '/recipes/:id',
