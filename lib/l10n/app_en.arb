@@ -51,6 +51,8 @@
     "placeholders": { "error": { "type": "String" } }
   },
   "profileLanguage": "Language",
+  "profileAdPrivacy": "Ad privacy choices",
+  "profileAdPrivacySubtitle": "Change how ads use your data",
   "languagePickerTitle": "Choose a language",
 
   "profileEditName": "Edit display name",

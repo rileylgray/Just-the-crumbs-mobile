@@ -21,28 +21,6 @@ class IngredientGroup {
         items: Recipe._stringList(data['items']),
       );
 
-  /// Parses the legacy "Group — item" encoding produced by the URL importer
-  /// into structured groups. Items without the ` — ` separator fall into a
-  /// leading default (untitled) group. Order of first appearance is preserved.
-  static List<IngredientGroup> parseEncoded(List<String> flat) {
-    final order = <String>[];
-    final byTitle = <String, List<String>>{};
-    for (final raw in flat) {
-      final sep = raw.indexOf(' — ');
-      final title = sep > 0 ? raw.substring(0, sep).trim() : '';
-      final item = sep > 0 ? raw.substring(sep + 3).trim() : raw.trim();
-      if (item.isEmpty) continue;
-      if (!byTitle.containsKey(title)) {
-        order.add(title);
-        byTitle[title] = <String>[];
-      }
-      byTitle[title]!.add(item);
-    }
-    if (order.isEmpty) return const [];
-    return [
-      for (final title in order) IngredientGroup(title: title, items: byTitle[title]!),
-    ];
-  }
 }
 
 /// A recipe owned by a user. Mirrors the Rails `Recipe` model.

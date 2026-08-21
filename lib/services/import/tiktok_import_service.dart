@@ -4,7 +4,9 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:http/http.dart' as http;
 
 import '../../config.dart';
+import '../../models/recipe.dart';
 import 'ai_recipe_parser.dart';
+import 'ingredient_grouping.dart';
 import 'recipe_import_service.dart';
 
 /// Dart port of the Rails `TiktokImportService`. TikTok pages don't carry
@@ -92,6 +94,7 @@ class TiktokImportService {
     //    transcript (whose heuristic parse is unreliable). Structured
     //    descriptions skip it, so most imports never spend a call — keeping
     //    volume inside the free tier. Degrades silently.
+    List<IngredientGroup>? aiGroups;
     if (_isWeak(ingredients, steps) || usedTranscript) {
       final ai = await _aiParser(_rawForAi(meta.description, transcript));
       if (ai != null) {
@@ -104,6 +107,10 @@ class TiktokImportService {
         if ((ingredients.length < 2 || usedTranscript) &&
             ai.ingredients.length >= 2) {
           ingredients = _finalizeIngredients(ai.ingredients);
+          // The AI reports the recipe's named parts ("for the sauce") as real
+          // groups; keep them so they survive to the editor instead of being
+          // flattened into one list.
+          aiGroups = _finalizeGroups(ai.ingredientGroups);
         }
         if ((steps.isEmpty || usedTranscript) && ai.steps.isNotEmpty) {
           steps = _finalizeSteps(ai.steps);
@@ -119,12 +126,39 @@ class TiktokImportService {
       steps = const ['Watch the video for the full instructions.'];
     }
 
+    // Only a genuinely multi-part answer is worth carrying as groups; a single
+    // group is the same thing as the flat list, which the caller derives its
+    // own grouping from (captions announce their parts in-band).
+    if (aiGroups != null && aiGroups.length > 1) {
+      return ImportedRecipe.grouped(
+        title: title,
+        ingredientGroups: aiGroups,
+        steps: steps,
+        sourceUrl: url,
+      );
+    }
+
     return ImportedRecipe(
       title: title,
       ingredients: ingredients,
       steps: steps,
       sourceUrl: url,
     );
+  }
+
+  /// Cleans an AI-supplied group set with the same rules as a flat ingredient
+  /// list, dropping any group left without items.
+  List<IngredientGroup> _finalizeGroups(List<IngredientGroup> groups) {
+    final out = <IngredientGroup>[];
+    for (final group in groups) {
+      final items = _finalizeIngredients(group.items);
+      if (items.isEmpty) continue;
+      out.add(IngredientGroup(
+        title: _capitalize(_baseClean(group.title)),
+        items: items,
+      ));
+    }
+    return out;
   }
 
   bool _isWeak(List<String> ingredients, List<String> steps) =>
@@ -169,12 +203,22 @@ class TiktokImportService {
     if (script != null) {
       try {
         final data = jsonDecode(script.text) as Map<String, dynamic>;
-        final itemStruct = _dig(data, [
-          '__DEFAULT_SCOPE__',
+        // A short vt.tiktok.com share link often lands on the "reflow" page,
+        // which carries the same itemStruct under a different scope key (and
+        // no og:description to fall back on), so try both.
+        dynamic itemStruct;
+        for (final scope in const [
           'webapp.video-detail',
-          'itemInfo',
-          'itemStruct',
-        ]);
+          'webapp.reflow.video.detail',
+        ]) {
+          itemStruct = _dig(data, [
+            '__DEFAULT_SCOPE__',
+            scope,
+            'itemInfo',
+            'itemStruct',
+          ]);
+          if (itemStruct is Map) break;
+        }
         if (itemStruct is Map) {
           description = itemStruct['desc'] as String?;
           final author = itemStruct['author'];
@@ -243,8 +287,10 @@ class TiktokImportService {
       if (_isIngredientsHeader(lines[i]) || _isStepsHeader(lines[i])) continue;
       final candidate = _baseClean(lines[i]);
       if (candidate.length < 3) continue;
-      title = _capitalize(
-          candidate.length > 90 ? candidate.substring(0, 90).trim() : candidate);
+      title = _dishNameFromIntro(candidate) ??
+          _capitalize(candidate.length > 90
+              ? candidate.substring(0, 90).trim()
+              : candidate);
       titleIdx = i;
       break;
     }
@@ -264,6 +310,26 @@ class TiktokImportService {
       }
     }
     return _ParsedRecipe(title, ingredients, steps);
+  }
+
+  /// A long lead paragraph is a hook, not a title — but creators name the dish
+  /// at the very end of it, right after the promo line ("…full recipe below,
+  /// link in my bio 🤎 Beef pot roast"). Return that trailing name, or `null`
+  /// when the paragraph has no promo line to anchor on or what follows it
+  /// doesn't read like a dish name — the caller then truncates as before.
+  String? _dishNameFromIntro(String paragraph) {
+    if (paragraph.length <= 90) return null;
+    String? tail;
+    for (final m in _outroChatter.allMatches(paragraph)) {
+      tail = paragraph.substring(m.end);
+    }
+    if (tail == null) return null;
+    // The name sits after the last sentence break in what's left.
+    final candidate =
+        _baseClean(tail.split(RegExp(r'(?<=[.!?])\s+')).last);
+    if (candidate.length < 3 || candidate.length > 60) return null;
+    if (candidate.split(RegExp(r'\s+')).length > 8) return null;
+    return _capitalize(candidate);
   }
 
   /// Guards the prose fallback: a genuine recipe reads as several cooking
@@ -397,6 +463,13 @@ class TiktokImportService {
     final steps = <String>[];
     var inSteps = false;
     for (final line in body) {
+      // A group heading ("For the sauce:") opens an ingredient block, so it
+      // belongs on the ingredient side even though it measures nothing — and
+      // it must not be mistaken for the start of the method.
+      if (!inSteps && ingredientGroupTitle(line) != null) {
+        ing.add(line);
+        continue;
+      }
       if (!inSteps &&
           (_isNumberedStep(line) || _startsWithCookingVerb(line))) {
         inSteps = true;
@@ -724,7 +797,7 @@ class TiktokImportService {
 
   List<String> _finalizeSteps(List<String> raw) {
     final out = <String>[];
-    for (final line in raw) {
+    for (final line in _splitLongProperSentences(raw)) {
       final cleaned = _cleanStep(line);
       if (cleaned.isEmpty) continue;
       if (cleaned.split(' ').length < 2 || cleaned.length < 6) continue;
@@ -734,11 +807,33 @@ class TiktokImportService {
     return out;
   }
 
+  /// A caption whose whole method sits on one line (TikTok strips the newlines
+  /// out of many descriptions) arrives here as a single enormous "step" that
+  /// the length cap above would simply drop. When that block is *properly
+  /// punctuated* prose, its sentences already are the steps, so split on them
+  /// rather than falling through to the noisy clause segmenter meant for
+  /// unpunctuated transcripts.
+  List<String> _splitLongProperSentences(List<String> raw) {
+    final out = <String>[];
+    for (final line in raw) {
+      if (line.length > 300 &&
+          RegExp(r'[.!?]\s').allMatches(line).length >= 3) {
+        out.addAll(line
+            .split(RegExp(r'(?<=[.!?])\s+'))
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty));
+      } else {
+        out.add(line);
+      }
+    }
+    return out;
+  }
+
   /// Splits a single "line" that actually packs several ingredients — bullet
   /// separated, or comma separated with multiple quantities.
   List<String> _explode(String line) {
-    if (RegExp(r'[•·▪▫◦‣▶►●○]').hasMatch(line)) {
-      return line.split(RegExp(r'\s*[•·▪▫◦‣▶►●○]\s*'));
+    if (_bullet.hasMatch(line)) {
+      return line.split(_bulletSplit);
     }
     final quantities =
         RegExp(r'(?:\d+(?:[./]\d+)?|[½⅓⅔¼¾])').allMatches(line).length;
@@ -797,9 +892,9 @@ class TiktokImportService {
         .toList();
     if (lines.length <= 1) {
       final single = lines.isEmpty ? '' : lines.first;
-      if (RegExp(r'[•·▪▫◦‣▶►●○]').hasMatch(single)) {
+      if (_bullet.hasMatch(single)) {
         lines = single
-            .split(RegExp(r'\s*[•·▪▫◦‣▶►●○]\s*'))
+            .split(_bulletSplit)
             .map((l) => l.trim())
             .where((l) => l.isNotEmpty)
             .toList();
@@ -814,8 +909,7 @@ class TiktokImportService {
     final matched = line.substring(0, m.end);
     final rem = line.substring(m.end).trim();
     if (matched.contains(':') || rem.isEmpty) return true;
-    return _looksLikeIngredient(rem) ||
-        RegExp(r'^[•·▪▫◦‣▶►●○]').hasMatch(rem);
+    return _looksLikeIngredient(rem) || _bullet.matchAsPrefix(rem) != null;
   }
 
   bool _isStepsHeader(String line) {
@@ -878,8 +972,16 @@ class TiktokImportService {
     caseSensitive: false,
   );
   static final _hashtag = RegExp(r'[#@][\w]+');
+
+  /// Every character creators reach for as a list bullet. Beyond the obvious
+  /// dots this has to cover the ones phone keyboards and note apps insert —
+  /// notably `⁃` (U+2043 hyphen bullet), which iOS produces and which used to
+  /// leave a whole bulleted ingredient block looking like one run-on line.
+  static const _bulletChars = '•·▪▫◦‣⁃∙●○◘◙▸▹▶►➤➔➜➡✦✧';
+  static final _bullet = RegExp('[$_bulletChars]');
+  static final _bulletSplit = RegExp(r'\s*[' + _bulletChars + r']\s*');
   static final _leadingBullet =
-      RegExp(r'^\s*(?:[-*•·▪▫◦‣▶►●○➡]+|\d{1,2}[.)])\s*');
+      RegExp('^\\s*(?:[-*$_bulletChars]+|\\d{1,2}[.)])\\s*');
   static final _emoji = RegExp(
     r'[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}]',
     unicode: true,

@@ -129,6 +129,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get profileLanguage => 'Langue';
 
   @override
+  String get profileAdPrivacy => 'Choix de confidentialité publicitaire';
+
+  @override
+  String get profileAdPrivacySubtitle =>
+      'Modifiez l\'utilisation de vos données par les pubs';
+
+  @override
   String get languagePickerTitle => 'Choisir une langue';
 
   @override

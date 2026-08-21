@@ -130,6 +130,13 @@ class AppLocalizationsIt extends AppLocalizations {
   String get profileLanguage => 'Lingua';
 
   @override
+  String get profileAdPrivacy => 'Opzioni privacy per gli annunci';
+
+  @override
+  String get profileAdPrivacySubtitle =>
+      'Cambia come gli annunci usano i tuoi dati';
+
+  @override
   String get languagePickerTitle => 'Scegli una lingua';
 
   @override

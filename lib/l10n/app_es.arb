@@ -38,6 +38,8 @@
   "profileReauthNeeded": "Inicia sesión de nuevo y vuelve a intentar eliminar tu cuenta.",
   "profileDeleteFailed": "No se pudo eliminar la cuenta: {error}",
   "profileLanguage": "Idioma",
+  "profileAdPrivacy": "Opciones de privacidad de anuncios",
+  "profileAdPrivacySubtitle": "Cambia cómo los anuncios usan tus datos",
   "languagePickerTitle": "Elige un idioma",
 
   "profileEditName": "Editar nombre visible",

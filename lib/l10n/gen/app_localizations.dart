@@ -304,6 +304,18 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get profileLanguage;
 
+  /// No description provided for @profileAdPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Ad privacy choices'**
+  String get profileAdPrivacy;
+
+  /// No description provided for @profileAdPrivacySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change how ads use your data'**
+  String get profileAdPrivacySubtitle;
+
   /// No description provided for @languagePickerTitle.
   ///
   /// In en, this message translates to:

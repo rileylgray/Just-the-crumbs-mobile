@@ -10,6 +10,7 @@ import '../services/ad_service.dart';
 import '../services/auth_service.dart';
 import '../services/category_repository.dart';
 import '../services/comment_repository.dart';
+import '../services/consent_service.dart';
 import '../services/moderation_repository.dart';
 import '../services/recipe_repository.dart';
 import '../services/share_service.dart';
@@ -43,9 +44,23 @@ final shareServiceProvider = Provider<ShareService>((_) => ShareService());
 
 /// Manages interstitial ("popup") ads. Kept alive for the app's lifetime so a
 /// single ad stays preloaded and the frequency cap persists across screens.
+///
+/// Preloading waits on the consent gate rather than firing immediately: the
+/// UMP flow resolves after startup, so an unconditional `preload()` here would
+/// no-op and never be retried.
 final interstitialAdManagerProvider = Provider<InterstitialAdManager>((ref) {
   final manager = InterstitialAdManager();
-  manager.preload();
+  final gate = ConsentService.instance.adsStarted;
+
+  void preloadWhenAllowed() {
+    if (gate.value) manager.preload();
+  }
+
+  gate.addListener(preloadWhenAllowed);
+  ref.onDispose(() => gate.removeListener(preloadWhenAllowed));
+  // Covers the case where consent already resolved before this provider was
+  // first read (e.g. the user navigates to a recipe well after launch).
+  preloadWhenAllowed();
   return manager;
 });
 

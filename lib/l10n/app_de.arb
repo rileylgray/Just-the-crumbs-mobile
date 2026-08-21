@@ -38,6 +38,8 @@
   "profileReauthNeeded": "Bitte melde dich erneut an und versuche dann noch einmal, dein Konto zu löschen.",
   "profileDeleteFailed": "Konto konnte nicht gelöscht werden: {error}",
   "profileLanguage": "Sprache",
+  "profileAdPrivacy": "Datenschutzeinstellungen für Werbung",
+  "profileAdPrivacySubtitle": "Ändere, wie Werbung deine Daten nutzt",
   "languagePickerTitle": "Sprache auswählen",
 
   "profileEditName": "Anzeigenamen bearbeiten",

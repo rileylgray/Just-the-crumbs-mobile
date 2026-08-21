@@ -7,6 +7,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/providers.dart';
 import '../../services/auth_service.dart';
+import '../../services/consent_service.dart';
 import '../../theme/app_theme.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -397,6 +398,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               trailing: const Icon(Icons.chevron_right),
               onTap: _busy ? null : _pickLanguage,
             ),
+          ),
+          // Google requires this entry point wherever the configured consent
+          // message offers privacy options — and requires it to be absent
+          // elsewhere, so it only appears when the SDK says so. The value
+          // arrives once the consent flow resolves, hence the builder.
+          ValueListenableBuilder<bool>(
+            valueListenable: ConsentService.instance.privacyOptionsRequired,
+            builder: (context, required, _) {
+              if (!required) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Card(
+                  margin: EdgeInsets.zero,
+                  child: ListTile(
+                    leading: const Icon(Icons.tune, color: AppColors.primary),
+                    title: Text(l10n.profileAdPrivacy),
+                    subtitle: Text(l10n.profileAdPrivacySubtitle),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _busy
+                        ? null
+                        : ConsentService.instance.showPrivacyOptions,
+                  ),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 24),
           TextButton.icon(

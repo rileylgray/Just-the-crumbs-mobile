@@ -1,0 +1,10 @@
+// Gives the share extension the same version numbers as the app: Flutter
+// rewrites FLUTTER_BUILD_NAME / FLUTTER_BUILD_NUMBER into Generated.xcconfig on
+// every build, and the extension's Info.plist reads them from here. An extension
+// whose version doesn't match its host app is rejected at upload.
+//
+// This deliberately includes Generated.xcconfig directly rather than
+// Flutter/Debug.xcconfig or Flutter/Release.xcconfig (which is what the Runner
+// target uses): `pod install` appends the Pods-Runner configuration to those
+// two, and the extension links no pods.
+#include "../Flutter/Generated.xcconfig"

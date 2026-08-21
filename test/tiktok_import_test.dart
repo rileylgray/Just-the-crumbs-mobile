@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:just_the_crumbs_mobile/models/recipe.dart';
 import 'package:just_the_crumbs_mobile/services/import/ai_recipe_parser.dart';
 import 'package:just_the_crumbs_mobile/services/import/recipe_import_service.dart';
 
@@ -28,6 +29,7 @@ String _tiktokPage(
   String desc, {
   String creator = 'chef',
   List<Map<String, String>> subtitles = const [],
+  String scope = 'webapp.video-detail',
 }) {
   final itemStruct = {
     'desc': desc,
@@ -46,7 +48,7 @@ String _tiktokPage(
   };
   final data = {
     '__DEFAULT_SCOPE__': {
-      'webapp.video-detail': {
+      scope: {
         'itemInfo': {'itemStruct': itemStruct},
       },
     },
@@ -111,6 +113,118 @@ void main() {
       expect(result.title, 'Easy Fried Rice');
       expect(result.ingredients, ['2 cups rice', '3 eggs', '1 cup peas']);
       expect(result.steps.length, 2);
+    });
+
+    test('splits a hyphen-bulleted, newline-free description', () async {
+      // TikTok hands back many captions with the newlines flattened away, so
+      // the recipe arrives on one line separated by `⁃` (U+2043 hyphen bullet,
+      // what iOS inserts). That bullet went unrecognised, and the ingredient
+      // block fell through to comma-splitting — producing fragments like
+      // "⁃ 2-3 lb chuck roast ⁃ 1 medium white onion" / "Sliced ⁃ 3 celery
+      // stalks" instead of one ingredient per entry.
+      const desc = 'If there is one meal that belongs on your fall dinner '
+          'table, it’s a cozy pot roast. Slow cooked until tender and finished '
+          'with a rich broth. Full recipe down below, you can also find it in '
+          'the link in my bio 🤎  Beef pot roast Ingredients: \t⁃\t2-3 lb chuck '
+          'roast \t⁃\t1 medium white onion, sliced \t⁃\t3 celery stalks, diced '
+          '\t⁃\t3 large carrots, sliced \t⁃\tBite size potatoes \t⁃\t5 garlic '
+          'cloves, minced \t⁃\tSalt to taste Instructions: Wash and prep all of '
+          'your vegetables. Peel and dice the carrots, slice the onion, mince '
+          'the garlic, and dice the celery. Season the chuck roast to your '
+          'liking. Add oil to a Dutch oven and sear the roast on all sides for '
+          '3–4 minutes per side. Add the celery and onion to the pot and cook '
+          'over medium heat until the onion has caramelized. Add ½ cup of beef '
+          'broth to deglaze the pot, then pour in the remaining broth. Cover '
+          'and place in a 350°F oven for 3 hours. Enjoy! 🤎 #fall #potroast';
+
+      final result = await RecipeImportService(
+        'https://www.tiktok.com/@chef/video/123',
+        client: _router(_tiktokPage(desc)),
+      ).call();
+
+      expect(result.ingredients, [
+        '2-3 lb chuck roast',
+        '1 medium white onion, sliced',
+        '3 celery stalks, diced',
+        '3 large carrots, sliced',
+        'Bite size potatoes',
+        '5 garlic cloves, minced',
+        'Salt to taste',
+      ]);
+      // The dish name trails the promo line; the hook in front of it is not
+      // the title.
+      expect(result.title, 'Beef pot roast');
+      // A one-line method block is split on its own sentences rather than
+      // being dropped whole for length.
+      expect(result.steps.first, 'Wash and prep all of your vegetables.');
+      expect(result.steps.length, 7);
+      expect(result.steps.any((s) => s.contains('#')), isFalse);
+    });
+
+    test('reads the reflow share page a short vt.tiktok.com link lands on',
+        () async {
+      // No og:description on that page, so the reflow scope is the only source.
+      final desc = 'Garlic Bread\n'
+          'Ingredients:\n- 1 baguette\n- 4 tbsp butter\n'
+          'Instructions:\n1. Spread the butter and bake until crisp.';
+
+      final result = await RecipeImportService(
+        'https://www.tiktok.com/@chef/video/123',
+        client: _router(
+            _tiktokPage(desc, scope: 'webapp.reflow.video.detail')),
+      ).call();
+
+      expect(result.title, 'Garlic Bread');
+      expect(result.ingredients, ['1 baguette', '4 tbsp butter']);
+      expect(result.steps.length, 1);
+    });
+
+    test('splits a description that names its parts into groups', () async {
+      final desc = 'Chicken Katsu Bowls\n'
+          'Ingredients:\n'
+          'For the katsu:\n'
+          '- 2 chicken breasts\n'
+          '- 1 cup panko\n'
+          'For the sauce:\n'
+          '- 3 tbsp ketchup\n'
+          '- 2 tbsp soy sauce\n'
+          'Instructions:\n'
+          '1. Bread and fry the chicken until golden.\n'
+          '2. Whisk the sauce together and serve.';
+
+      final result = await RecipeImportService(
+        'https://www.tiktok.com/@chef/video/123',
+        client: _router(_tiktokPage(desc)),
+      ).call();
+
+      expect(result.ingredientGroups.map((g) => g.title), ['Katsu', 'Sauce']);
+      expect(result.ingredientGroups.first.items,
+          ['2 chicken breasts', '1 cup panko']);
+      expect(result.ingredientGroups.last.items,
+          ['3 tbsp ketchup', '2 tbsp soy sauce']);
+      // The headings themselves are not ingredients, and never leak into steps.
+      expect(result.ingredients.length, 4);
+      expect(result.steps.length, 2);
+    });
+
+    test('keeps a single untitled group for an ordinary ingredient list',
+        () async {
+      final desc = 'Garlic Bread\n'
+          'Ingredients:\n'
+          '- 1 baguette\n'
+          '- 4 tbsp butter\n'
+          'Instructions:\n'
+          '1. Spread the butter and bake until crisp.';
+
+      final result = await RecipeImportService(
+        'https://www.tiktok.com/@chef/video/123',
+        client: _router(_tiktokPage(desc)),
+      ).call();
+
+      expect(result.ingredientGroups.length, 1);
+      expect(result.ingredientGroups.single.isDefault, isTrue);
+      expect(result.ingredientGroups.single.items,
+          ['1 baguette', '4 tbsp butter']);
     });
 
     test('falls back to subtitles when the description has no recipe',
@@ -242,7 +356,7 @@ boil the pasta for ten minutes.
   group('TiktokImportService AI fallback', () {
     test('uses the AI parser when heuristics come up empty', () async {
       const desc = 'the BEST dinner 😍 follow for more! #fyp #foodtok';
-      final fake = _FakeAi((_) => const AiParsedRecipe(
+      final fake = _FakeAi((_) => AiParsedRecipe(
             title: 'Garlic Butter Shrimp',
             ingredients: ['1 lb shrimp', '4 tbsp butter', '3 cloves garlic'],
             steps: ['Melt the butter', 'Add garlic and shrimp', 'Cook 3 minutes'],
@@ -260,6 +374,31 @@ boil the pasta for ten minutes.
       // AI output is run through the same formatter (steps get punctuation).
       expect(result.steps.first, 'Melt the butter.');
       expect(result.steps.length, 3);
+    });
+
+    test('keeps the ingredient groups the AI reports', () async {
+      const desc = 'the BEST dinner 😍 follow for more! #fyp #foodtok';
+      final fake = _FakeAi((_) => const AiParsedRecipe.grouped(
+            title: 'Chicken Katsu Bowls',
+            ingredientGroups: [
+              IngredientGroup(
+                  title: 'Katsu', items: ['2 chicken breasts', '1 cup panko']),
+              IngredientGroup(
+                  title: 'Sauce', items: ['3 tbsp ketchup', '2 tbsp soy sauce']),
+            ],
+            steps: ['Bread and fry the chicken', 'Whisk the sauce'],
+          ));
+
+      final result = await RecipeImportService(
+        'https://www.tiktok.com/@chef/video/123',
+        client: _router(_tiktokPage(desc)),
+        aiParser: fake.call,
+      ).call();
+
+      expect(result.ingredientGroups.map((g) => g.title), ['Katsu', 'Sauce']);
+      expect(result.ingredientGroups.last.items,
+          ['3 tbsp ketchup', '2 tbsp soy sauce']);
+      expect(result.ingredients.length, 4);
     });
 
     test('does NOT call the AI when the description is already a full recipe',
@@ -325,7 +464,7 @@ one full cup drained and rinsed of black beans a cup because that's plenty.
 half a cup of oats going in what's next?
 ''';
 
-      final fake = _FakeAi((_) => const AiParsedRecipe(
+      final fake = _FakeAi((_) => AiParsedRecipe(
             title: 'Black Bean Brownies',
             ingredients: [
               '1 can black beans, drained',

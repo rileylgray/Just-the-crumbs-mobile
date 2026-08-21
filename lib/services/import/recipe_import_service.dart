@@ -6,30 +6,41 @@ import 'package:http/http.dart' as http;
 
 import '../../models/recipe.dart';
 import 'ai_recipe_parser.dart';
+import 'ingredient_grouping.dart';
 import 'tiktok_import_service.dart';
 
 /// The parsed result of importing a recipe from a URL.
 class ImportedRecipe {
   final String title;
-  final List<String> ingredients;
+
+  /// The ingredients as structured groups, so an imported multi-part recipe
+  /// (e.g. "Crust" / "Filling") lands in the editor already split. Ordinary
+  /// single-list recipes hold one untitled group.
+  final List<IngredientGroup> ingredientGroups;
   final List<String> steps;
   final String sourceUrl;
 
-  const ImportedRecipe({
+  /// Builds from a flat ingredient list, splitting it into groups wherever it
+  /// carries them in-band — see [groupIngredients].
+  ImportedRecipe({
     required this.title,
-    required this.ingredients,
+    required List<String> ingredients,
+    required this.steps,
+    required this.sourceUrl,
+  }) : ingredientGroups = groupIngredients(ingredients);
+
+  /// Builds from ingredients that are already grouped (the AI parser returns
+  /// them structured, so there is nothing to re-derive).
+  const ImportedRecipe.grouped({
+    required this.title,
+    required this.ingredientGroups,
     required this.steps,
     required this.sourceUrl,
   });
 
-  /// The ingredients as structured groups, so an imported multi-part recipe
-  /// (e.g. "Crust" / "Filling") lands in the editor already split. The web
-  /// scraper encodes groups as `Group — item`; anything without that separator
-  /// (including every TikTok import) becomes a single untitled group.
-  List<IngredientGroup> get ingredientGroups {
-    final parsed = IngredientGroup.parseEncoded(ingredients);
-    return parsed.isEmpty ? [IngredientGroup(items: ingredients)] : parsed;
-  }
+  /// Every ingredient, groups flattened back in order.
+  List<String> get ingredients =>
+      [for (final g in ingredientGroups) ...g.items];
 }
 
 /// Dart port of the Rails `RecipeImportService`. Fetches a recipe page and
@@ -106,17 +117,19 @@ class RecipeImportService {
   // ---- Ingredients ---------------------------------------------------------
 
   List<String> _extractIngredients() {
-    // Priority 0: Simply Recipes structured ingredients.
+    // Priority 0: grouped HTML (AllRecipes / Simply Recipes etc.). Marked-up
+    // groups are the most faithful reading of a multi-part recipe, so they win
+    // over the flat lists below — which hold the same items minus the parts.
+    final grouped = _groupedIngredientsFromHtml();
+    if (grouped.isNotEmpty) return grouped;
+
+    // Priority 1: Simply Recipes structured ingredients (ungrouped).
     final simply = _doc
         .querySelectorAll('.structured-ingredients__list-item')
         .map((e) => _clean(e.text))
         .where(_reasonable)
         .toList();
     if (simply.isNotEmpty) return simply;
-
-    // Priority 1: grouped HTML (AllRecipes etc.).
-    final grouped = _groupedIngredientsFromHtml();
-    if (grouped.isNotEmpty) return grouped;
 
     final genericGrouped = _groupedIngredientsGeneric();
     if (genericGrouped.isNotEmpty) return genericGrouped;
@@ -177,14 +190,16 @@ class RecipeImportService {
 
   List<String> _groupedIngredientsFromHtml() {
     final grouped = <String>[];
-    for (final heading
-        in _doc.querySelectorAll('.mm-recipes-structured-ingredients__list-heading')) {
-      final groupName = heading.text.trim();
+    for (final heading in _doc.querySelectorAll(
+        '.mm-recipes-structured-ingredients__list-heading, '
+        '.structured-ingredients__list-heading')) {
+      final groupName = heading.text.trim().replaceAll(RegExp(r':$'), '');
       final list = _followingList(heading);
       if (list == null) continue;
       for (final li in list.querySelectorAll('li')) {
         final text = _clean(li.text);
-        if (text.isNotEmpty) grouped.add('$groupName — $text');
+        if (text.isEmpty) continue;
+        grouped.add(groupName.isEmpty ? text : '$groupName — $text');
       }
     }
     return grouped;

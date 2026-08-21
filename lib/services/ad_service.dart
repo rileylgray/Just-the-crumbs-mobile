@@ -4,18 +4,23 @@ import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../config.dart';
+import 'consent_service.dart';
 
 /// The single ad request used for every ad in the app.
 ///
-/// `nonPersonalizedAds: true` keeps AdMob out of behavioural targeting: no
-/// interest profile, and no use of the advertising identifier to link this
-/// app's data with third-party data. That is what App Store guideline
-/// 5.1.2(i) calls "tracking", so requesting non-personalized ads is precisely
-/// why the app needs no App Tracking Transparency prompt — and why the App
-/// Store Connect privacy labels declare that no collected data is used to
-/// track. Flipping this back to personalized ads means adding an ATT request
-/// *and* updating those labels, or the next submission gets rejected again.
-const adRequest = AdRequest(nonPersonalizedAds: true);
+/// Personalized: the default request lets AdMob target on whatever signals the
+/// user has actually agreed to. What's permitted is decided by consent, not by
+/// this request — [ConsentService] runs the UMP form (which supplies the TC
+/// string that limits targeting for EEA/UK users who decline) and the iOS ATT
+/// prompt (which gates the advertising identifier) before any ad loads.
+///
+/// Personalized ads use the advertising identifier to link this app's data with
+/// third-party data, which is what App Store guideline 5.1.2(i) calls
+/// "tracking". That is why ios/Runner/Info.plist now carries
+/// `NSUserTrackingUsageDescription`, why [ConsentService] requests ATT, and why
+/// the App Store Connect privacy labels must declare data used to track —
+/// leave any of the three out and the next submission gets rejected again.
+const adRequest = AdRequest();
 
 /// Loads and shows interstitial ("popup") ads at natural transition points.
 ///
@@ -32,11 +37,15 @@ class InterstitialAdManager {
 
   bool get _isIOS => !kIsWeb && Platform.isIOS;
 
-  /// Ads only run on Android/iOS; skip on web/desktop where the plugin has no
-  /// implementation.
-  bool get _supported => !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+  /// Ads only run on Android/iOS, and only once the consent flow has cleared
+  /// them; skip on web/desktop where the plugin has no implementation.
+  bool get _supported =>
+      !kIsWeb &&
+      (Platform.isAndroid || Platform.isIOS) &&
+      ConsentService.instance.adsStarted.value;
 
   /// Preload an interstitial so it's ready the moment we want to show one.
+  /// A no-op until consent resolves — `providers.dart` calls it again then.
   void preload() {
     if (!_supported || _ad != null || _loading) return;
     _loading = true;

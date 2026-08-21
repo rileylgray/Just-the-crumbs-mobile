@@ -5,18 +5,34 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../../config.dart';
+import '../../models/recipe.dart';
 
 /// A recipe parsed out of messy text by the AI fallback.
 class AiParsedRecipe {
-  const AiParsedRecipe({
+  /// A recipe whose ingredients are one plain list.
+  AiParsedRecipe({
     required this.title,
-    required this.ingredients,
+    required List<String> ingredients,
+    required this.steps,
+  }) : ingredientGroups = [IngredientGroup(items: ingredients)];
+
+  /// A recipe the model split into named parts ("For the sauce").
+  const AiParsedRecipe.grouped({
+    required this.title,
+    required this.ingredientGroups,
     required this.steps,
   });
 
   final String title;
-  final List<String> ingredients;
+
+  /// The ingredients as the model grouped them. A recipe with no named parts
+  /// holds a single untitled group.
+  final List<IngredientGroup> ingredientGroups;
   final List<String> steps;
+
+  /// Every ingredient, groups flattened in order.
+  List<String> get ingredients =>
+      [for (final g in ingredientGroups) ...g.items];
 }
 
 /// Signature for the AI parse step. Takes the best raw text we have for a video
@@ -62,7 +78,14 @@ class GeminiRecipeParser {
           responseSchema: Schema.object(
             properties: {
               'title': Schema.string(),
-              'ingredients': Schema.array(items: Schema.string()),
+              'ingredientGroups': Schema.array(
+                items: Schema.object(
+                  properties: {
+                    'title': Schema.string(),
+                    'items': Schema.array(items: Schema.string()),
+                  },
+                ),
+              ),
               'steps': Schema.array(items: Schema.string()),
             },
           ),
@@ -79,9 +102,9 @@ class GeminiRecipeParser {
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return null;
 
-      final parsed = AiParsedRecipe(
+      final parsed = AiParsedRecipe.grouped(
         title: (decoded['title'] ?? '').toString().trim(),
-        ingredients: _stringList(decoded['ingredients']),
+        ingredientGroups: _groups(decoded),
         steps: _stringList(decoded['steps']),
       );
 
@@ -104,6 +127,27 @@ class GeminiRecipeParser {
     }
   }
 
+  /// Reads the model's `ingredientGroups`, tolerating a flat `ingredients`
+  /// array instead (older cached responses, or a model that ignored the
+  /// schema). Empty groups are dropped so a stray heading can't render as one.
+  static List<IngredientGroup> _groups(Map decoded) {
+    final raw = decoded['ingredientGroups'];
+    if (raw is List) {
+      final groups = <IngredientGroup>[];
+      for (final entry in raw) {
+        if (entry is! Map) continue;
+        final items = _stringList(entry['items']);
+        if (items.isEmpty) continue;
+        groups.add(IngredientGroup(
+          title: (entry['title'] ?? '').toString().trim(),
+          items: items,
+        ));
+      }
+      if (groups.isNotEmpty) return groups;
+    }
+    return [IngredientGroup(items: _stringList(decoded['ingredients']))];
+  }
+
   static List<String> _stringList(dynamic value) {
     if (value is! List) return const [];
     return value
@@ -116,9 +160,15 @@ class GeminiRecipeParser {
       'You extract a single cooking recipe from messy social-media text — a '
       "TikTok caption and/or an auto-generated (often unpunctuated) transcript "
       'of the spoken video.\n'
-      'Return: a short recipe title; the ingredients as a flat list with one '
-      'ingredient per entry, including quantities and units when stated; and '
-      'the preparation steps as an ordered list, one action per entry.\n'
+      'Return: a short recipe title; the ingredients, one per entry, including '
+      'quantities and units when stated; and the preparation steps as an '
+      'ordered list, one action per entry.\n'
+      'Group the ingredients only when the text itself names parts ("for the '
+      'sauce", "for the marinade"): then return one group per part, titled '
+      'with that part\'s name (without the leading "for the"). Otherwise '
+      'return a single group with an empty title. Never emit a group title '
+      'the text does not state, and never repeat an ingredient across '
+      'groups.\n'
       'Strip hashtags, @mentions, emojis, promotional lines and calls to '
       'action ("follow for more", "link in bio"). Do NOT number the steps '
       'yourself — the app numbers them. Do NOT invent ingredients or steps that '

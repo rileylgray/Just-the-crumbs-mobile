@@ -82,6 +82,79 @@ void main() {
       expect(result.steps.length, 4);
     });
 
+    test('groups ingredients from marked-up group headings', () async {
+      const html = '''
+<html><head><title>Cheesecake</title></head><body>
+<h1 class="recipe-title">Cheesecake</h1>
+<div>
+  <p class="structured-ingredients__list-heading">For the crust:</p>
+  <ul><li>2 cups graham crumbs</li><li>6 tbsp butter</li></ul>
+  <p class="structured-ingredients__list-heading">For the filling</p>
+  <ul><li>16 oz cream cheese</li><li>1 cup sugar</li></ul>
+</div>
+<div class="instructions"><ol>
+  <li>Press the crumb mixture into the pan firmly.</li>
+  <li>Beat the cream cheese and sugar until smooth.</li>
+  <li>Bake for one hour and chill overnight before serving.</li>
+  <li>Slice with a warm knife and serve cold.</li>
+</ol></div>
+</body></html>''';
+
+      final result = await RecipeImportService(
+        'https://example.com/cheesecake',
+        client: _clientReturning(html),
+      ).call();
+
+      expect(result.ingredientGroups.map((g) => g.title),
+          ['For the crust', 'For the filling']);
+      expect(result.ingredientGroups.first.items,
+          ['2 cups graham crumbs', '6 tbsp butter']);
+      expect(result.ingredients.length, 4);
+    });
+
+    test('groups a flat Schema.org list on its heading entries', () async {
+      // Plenty of sites have no group markup and simply put the headings in
+      // the ingredient list itself.
+      const html = '''
+<html><head><title>Tacos</title>
+<script type="application/ld+json">
+{"@type":"Recipe","name":"Tacos",
+"recipeIngredient":["For the filling:","1 lb ground beef","1 onion",
+                    "For the sauce:","2 tbsp chipotle paste","1/2 cup crema"],
+"recipeInstructions":[{"@type":"HowToStep","text":"Brown the beef with the onion."},
+                      {"@type":"HowToStep","text":"Stir the sauce together and spoon over."}]}
+</script></head><body></body></html>''';
+
+      final result = await RecipeImportService(
+        'https://example.com/tacos',
+        client: _clientReturning(html),
+      ).call();
+
+      expect(result.ingredientGroups.map((g) => g.title), ['Filling', 'Sauce']);
+      expect(result.ingredientGroups.first.items, ['1 lb ground beef', '1 onion']);
+      expect(result.ingredientGroups.last.items,
+          ['2 tbsp chipotle paste', '1/2 cup crema']);
+    });
+
+    test('leaves an ungrouped list as one untitled group', () async {
+      const html = '''
+<html><head><title>Cookies</title>
+<script type="application/ld+json">
+{"@type":"Recipe","name":"Cookies","recipeIngredient":["1 cup flour","2 eggs"],
+"recipeInstructions":[{"@type":"HowToStep","text":"Mix everything together."},
+                      {"@type":"HowToStep","text":"Bake for twelve minutes."}]}
+</script></head><body></body></html>''';
+
+      final result = await RecipeImportService(
+        'https://example.com/cookies',
+        client: _clientReturning(html),
+      ).call();
+
+      expect(result.ingredientGroups.length, 1);
+      expect(result.ingredientGroups.single.isDefault, isTrue);
+      expect(result.ingredientGroups.single.items, ['1 cup flour', '2 eggs']);
+    });
+
     test('throws a friendly error when nothing can be extracted', () async {
       const html = '<html><head><title>Blank</title></head><body></body></html>';
       expect(

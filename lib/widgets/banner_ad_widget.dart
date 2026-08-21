@@ -6,6 +6,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../config.dart';
 import '../services/ad_service.dart';
+import '../services/consent_service.dart';
 
 /// A persistent AdMob banner. Reserves no space until an ad has loaded, so it
 /// never leaves an empty gray strip if loading fails or the platform is
@@ -27,7 +28,24 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_supported && _ad == null) _loadAd();
+    if (!_supported || _ad != null) return;
+
+    // Consent usually resolves after first paint, so wait for the gate rather
+    // than checking it once. Listening (not just reading) also means a user who
+    // grants consent later gets a banner without restarting the app.
+    final gate = ConsentService.instance.adsStarted;
+    if (gate.value) {
+      _loadAd();
+    } else {
+      gate.addListener(_onAdsStarted);
+    }
+  }
+
+  void _onAdsStarted() {
+    final gate = ConsentService.instance.adsStarted;
+    if (!gate.value) return;
+    gate.removeListener(_onAdsStarted);
+    if (mounted && _ad == null) _loadAd();
   }
 
   Future<void> _loadAd() async {
@@ -58,6 +76,7 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
 
   @override
   void dispose() {
+    ConsentService.instance.adsStarted.removeListener(_onAdsStarted);
     _ad?.dispose();
     super.dispose();
   }

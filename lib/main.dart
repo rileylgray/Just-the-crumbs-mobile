@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
@@ -13,6 +12,7 @@ import 'l10n/gen/app_localizations.dart';
 import 'providers/locale_provider.dart';
 import 'providers/providers.dart';
 import 'router/app_router.dart';
+import 'services/consent_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -30,8 +30,11 @@ Future<void> main() async {
   // Load persisted settings (e.g. the chosen language) before first paint so the
   // saved locale applies immediately, with no flash of the default language.
   final prefs = await SharedPreferences.getInstance();
-  // Fire-and-forget: ads aren't needed for first paint, so don't block launch.
-  unawaited(MobileAds.instance.initialize());
+  // Runs the UMP consent form and the iOS ATT prompt, then starts the ad SDK —
+  // nothing is requested until a consent choice exists. Fire-and-forget: ads
+  // aren't needed for first paint, so don't block launch. Ad slots stay empty
+  // until this resolves and then fill themselves in.
+  unawaited(ConsentService.instance.initialize());
   runApp(
     ProviderScope(
       overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],

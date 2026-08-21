@@ -38,6 +38,8 @@
   "profileReauthNeeded": "Veuillez vous reconnecter, puis réessayer de supprimer votre compte.",
   "profileDeleteFailed": "Impossible de supprimer le compte : {error}",
   "profileLanguage": "Langue",
+  "profileAdPrivacy": "Choix de confidentialité publicitaire",
+  "profileAdPrivacySubtitle": "Modifiez l'utilisation de vos données par les pubs",
   "languagePickerTitle": "Choisir une langue",
 
   "profileEditName": "Modifier le nom affiché",
