@@ -46,6 +46,18 @@ class AppLocalizationsIt extends AppLocalizations {
   String get actionContinue => 'Continua';
 
   @override
+  String get actionPaste => 'Incolla';
+
+  @override
+  String get actionClear => 'Cancella';
+
+  @override
+  String get actionDiscard => 'Scarta';
+
+  @override
+  String get actionKeepEditing => 'Continua a modificare';
+
+  @override
   String get tooltipShare => 'Condividi';
 
   @override
@@ -140,6 +152,9 @@ class AppLocalizationsIt extends AppLocalizations {
   String get languagePickerTitle => 'Scegli una lingua';
 
   @override
+  String get profileSettings => 'Impostazioni';
+
+  @override
   String get profileEditName => 'Modifica nome visualizzato';
 
   @override
@@ -180,6 +195,12 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get recipesEmptyBody =>
       'Tocca “Aggiungi ricetta” per creare o importare la tua prima ricetta.';
+
+  @override
+  String get clearFilters => 'Rimuovi filtri';
+
+  @override
+  String get addSheetTitle => 'Aggiungi una ricetta';
 
   @override
   String get addSheetCreateTitle => 'Crea ricetta';
@@ -319,6 +340,13 @@ class AppLocalizationsIt extends AppLocalizations {
   String get recipeLanguageLabel => 'Lingua';
 
   @override
+  String get discardChangesTitle => 'Scartare le modifiche?';
+
+  @override
+  String get discardChangesBody =>
+      'Le modifiche a questa ricetta non sono ancora state salvate.';
+
+  @override
   String get importTitle => 'Importa ricetta';
 
   @override
@@ -354,6 +382,9 @@ class AppLocalizationsIt extends AppLocalizations {
   @override
   String get importReadError =>
       'Non abbiamo trovato una ricetta in quella pagina. Prova con un altro link.';
+
+  @override
+  String get clipboardNoLink => 'Non c\'è nessun link negli appunti';
 
   @override
   String get offlineBannerEditing =>
@@ -485,6 +516,15 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get cookModeOnHint => 'Testo più grande, lo schermo resta acceso';
+
+  @override
+  String get copyIngredients => 'Copia ingredienti';
+
+  @override
+  String get ingredientsCopied => 'Ingredienti copiati negli appunti';
+
+  @override
+  String get uncheckAll => 'Deseleziona tutto';
 
   @override
   String recipeSource(String url) {

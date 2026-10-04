@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../l10n/gen/app_localizations.dart';
-import '../../models/recipe.dart';
 import '../../providers/providers.dart';
-import '../../theme/app_theme.dart';
+import '../../widgets/copy_recipe_bar.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/recipe_view.dart';
 
 /// Opens a recipe shared via a code (pasted in-app or from a
@@ -20,63 +19,25 @@ class SharedRecipeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final recipeAsync = ref.watch(sharedRecipeProvider(code));
+    final recipe = recipeAsync.value;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.sharedRecipeTitle),
-        backgroundColor: AppColors.surface,
-      ),
+      appBar: AppBar(title: Text(l10n.sharedRecipeTitle)),
       body: recipeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            Center(child: Text(l10n.errorWithMessage(e.toString()))),
-        data: (recipe) {
-          if (recipe == null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(
-                  l10n.shareCodeNotFound,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textMuted),
-                ),
-              ),
-            );
-          }
-          return RecipeView(recipe: recipe);
-        },
+        error: (e, _) => EmptyState(
+          icon: Icons.error_outline,
+          title: l10n.errorWithMessage(e.toString()),
+        ),
+        data: (recipe) => recipe == null
+            ? EmptyState.fromText(
+                l10n.shareCodeNotFound,
+                icon: Icons.link_off,
+              )
+            : RecipeView(recipe: recipe),
       ),
-      bottomNavigationBar: recipeAsync.value == null
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: ElevatedButton.icon(
-                  onPressed: () => _copy(context, ref, recipeAsync.value!),
-                  icon: const Icon(Icons.bookmark_add_outlined),
-                  label: Text(l10n.copyToMyRecipes),
-                ),
-              ),
-            ),
+      bottomNavigationBar:
+          recipe == null ? null : CopyRecipeBar(recipe: recipe, replace: true),
     );
-  }
-
-  Future<void> _copy(BuildContext context, WidgetRef ref, Recipe recipe) async {
-    final l10n = AppLocalizations.of(context);
-    final uid = ref.read(currentUidProvider);
-    if (uid == null) return;
-    // Await the profile so a cold read doesn't fall back to 'Guest' for a
-    // signed-in user.
-    final profile = await ref.read(currentAppUserProvider.future);
-    final authorName = profile?.name ?? 'Guest';
-    final id = await ref
-        .read(recipeRepositoryProvider)
-        .copyRecipe(source: recipe, uid: uid, authorName: authorName);
-    if (context.mounted) {
-      context.pushReplacement('/recipes/$id');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.copiedToRecipes)),
-      );
-    }
   }
 }

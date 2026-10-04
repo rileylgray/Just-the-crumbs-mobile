@@ -45,6 +45,18 @@ class AppLocalizationsFr extends AppLocalizations {
   String get actionContinue => 'Continuer';
 
   @override
+  String get actionPaste => 'Coller';
+
+  @override
+  String get actionClear => 'Effacer';
+
+  @override
+  String get actionDiscard => 'Abandonner';
+
+  @override
+  String get actionKeepEditing => 'Continuer l\'édition';
+
+  @override
   String get tooltipShare => 'Partager';
 
   @override
@@ -139,6 +151,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get languagePickerTitle => 'Choisir une langue';
 
   @override
+  String get profileSettings => 'Paramètres';
+
+  @override
   String get profileEditName => 'Modifier le nom affiché';
 
   @override
@@ -179,6 +194,12 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get recipesEmptyBody =>
       'Appuyez sur « Ajouter une recette » pour créer ou importer votre première recette.';
+
+  @override
+  String get clearFilters => 'Effacer les filtres';
+
+  @override
+  String get addSheetTitle => 'Ajouter une recette';
 
   @override
   String get addSheetCreateTitle => 'Créer une recette';
@@ -317,6 +338,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get recipeLanguageLabel => 'Langue';
 
   @override
+  String get discardChangesTitle => 'Abandonner les modifications ?';
+
+  @override
+  String get discardChangesBody =>
+      'Vos modifications de cette recette n\'ont pas encore été enregistrées.';
+
+  @override
   String get importTitle => 'Importer une recette';
 
   @override
@@ -352,6 +380,9 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get importReadError =>
       'Nous n\'avons trouvé aucune recette sur cette page. Essayez un autre lien.';
+
+  @override
+  String get clipboardNoLink => 'Aucun lien dans le presse-papiers';
 
   @override
   String get offlineBannerEditing =>
@@ -484,6 +515,15 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get cookModeOnHint => 'Texte plus grand, écran toujours allumé';
+
+  @override
+  String get copyIngredients => 'Copier les ingrédients';
+
+  @override
+  String get ingredientsCopied => 'Ingrédients copiés dans le presse-papiers';
+
+  @override
+  String get uncheckAll => 'Tout décocher';
 
   @override
   String recipeSource(String url) {

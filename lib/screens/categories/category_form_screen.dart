@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../l10n/gen/app_localizations.dart';
+import '../../models/category.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/category_chip.dart';
 
 class CategoryFormScreen extends ConsumerStatefulWidget {
   const CategoryFormScreen({super.key, this.categoryId});
@@ -42,7 +44,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_loading || !_formKey.currentState!.validate()) return;
     final l10n = AppLocalizations.of(context);
     setState(() => _loading = true);
     final repo = ref.read(categoryRepositoryProvider);
@@ -74,7 +76,6 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
       appBar: AppBar(
         title: Text(
             widget.isEditing ? l10n.editCategoryTitle : l10n.newCategoryTitle),
-        backgroundColor: AppColors.surface,
       ),
       body: Form(
         key: _formKey,
@@ -83,18 +84,38 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
           children: [
             TextFormField(
               controller: _name,
+              autofocus: !widget.isEditing,
               textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.done,
               decoration: InputDecoration(labelText: l10n.fieldName),
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? l10n.nameRequired : null,
+              onFieldSubmitted: (_) => _save(),
+            ),
+            const SizedBox(height: 16),
+            // Live preview of the chip as it will appear on recipes.
+            Center(
+              child: ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _name,
+                builder: (context, value, _) => CategoryChip(
+                  category: Category(
+                    id: '',
+                    userId: '',
+                    name: value.text.trim().isEmpty
+                        ? l10n.fieldName
+                        : value.text.trim(),
+                    color: _color,
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 24),
             Text(l10n.fieldColor,
                 style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             Wrap(
-              spacing: 12,
-              runSpacing: 12,
+              spacing: 14,
+              runSpacing: 14,
               children: [
                 for (final hex in AppColors.categorySwatches)
                   _Swatch(
@@ -132,22 +153,33 @@ class _Swatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = Color(int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: selected ? AppColors.text : Colors.transparent,
-            width: 3,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: hex,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 46,
+          height: 46,
+          // A gap between the swatch and its selection ring keeps the ring
+          // visible against dark swatches.
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected ? AppColors.text : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            child: selected
+                ? Icon(Icons.check, color: AppColors.onColor(color), size: 20)
+                : null,
           ),
         ),
-        child: selected
-            ? const Icon(Icons.check, color: Colors.white, size: 20)
-            : null,
       ),
     );
   }

@@ -45,6 +45,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionContinue => 'Continue';
 
   @override
+  String get actionPaste => 'Paste';
+
+  @override
+  String get actionClear => 'Clear';
+
+  @override
+  String get actionDiscard => 'Discard';
+
+  @override
+  String get actionKeepEditing => 'Keep editing';
+
+  @override
   String get tooltipShare => 'Share';
 
   @override
@@ -137,6 +149,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get languagePickerTitle => 'Choose a language';
 
   @override
+  String get profileSettings => 'Settings';
+
+  @override
   String get profileEditName => 'Edit display name';
 
   @override
@@ -176,6 +191,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get recipesEmptyBody =>
       'Tap “Add recipe” to create or import your first one.';
+
+  @override
+  String get clearFilters => 'Clear filters';
+
+  @override
+  String get addSheetTitle => 'Add a recipe';
 
   @override
   String get addSheetCreateTitle => 'Create recipe';
@@ -312,6 +333,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recipeLanguageLabel => 'Language';
 
   @override
+  String get discardChangesTitle => 'Discard changes?';
+
+  @override
+  String get discardChangesBody =>
+      'Your changes to this recipe haven\'t been saved yet.';
+
+  @override
   String get importTitle => 'Import recipe';
 
   @override
@@ -347,6 +375,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get importReadError =>
       'We couldn\'t find a recipe on that page. Try a different link.';
+
+  @override
+  String get clipboardNoLink => 'There\'s no link on the clipboard';
 
   @override
   String get offlineBannerEditing =>
@@ -478,6 +509,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cookModeOnHint => 'Larger text, screen stays on';
+
+  @override
+  String get copyIngredients => 'Copy ingredients';
+
+  @override
+  String get ingredientsCopied => 'Ingredients copied to the clipboard';
+
+  @override
+  String get uncheckAll => 'Uncheck all';
 
   @override
   String recipeSource(String url) {

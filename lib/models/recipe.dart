@@ -76,6 +76,17 @@ class Recipe {
   List<String> get ingredients =>
       [for (final g in ingredientGroups) ...g.items];
 
+  /// Whether [query] appears (case-insensitively) in the title, description
+  /// or any ingredient — so searching "chicken" also finds recipes that only
+  /// list it as an ingredient. An empty query matches everything.
+  bool matchesSearch(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    return title.toLowerCase().contains(q) ||
+        description.toLowerCase().contains(q) ||
+        ingredients.any((i) => i.toLowerCase().contains(q));
+  }
+
   /// Whether this recipe splits its ingredients into named parts.
   bool get hasIngredientGroups =>
       ingredientGroups.length > 1 ||

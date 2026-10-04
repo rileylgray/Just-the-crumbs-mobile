@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,9 +9,10 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../models/recipe.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/providers.dart';
-import '../../theme/app_theme.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/recipe_card.dart';
 import '../../widgets/recipe_moderation.dart';
+import '../../widgets/search_field.dart';
 
 class PublicFeedScreen extends ConsumerStatefulWidget {
   const PublicFeedScreen({super.key});
@@ -20,7 +22,14 @@ class PublicFeedScreen extends ConsumerStatefulWidget {
 }
 
 class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
+  final _searchController = TextEditingController();
   String _search = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   /// The language actually applied: the viewer's persisted choice once made
   /// (see [contentLanguageProvider]), otherwise the viewer's UI language when
@@ -59,6 +68,7 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
               // Surprise from what's actually shown (respects the filters).
               final shown = _applyFilters(allRecipes, effectiveLanguage);
               if (shown.isEmpty) return;
+              HapticFeedback.lightImpact();
               final r = shown[Random().nextInt(shown.length)];
               context.push('/public/${r.id}');
             },
@@ -67,16 +77,10 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-            child: TextField(
-              onChanged: (v) => setState(() => _search = v),
-              decoration: InputDecoration(
-                hintText: l10n.discoverSearch,
-                prefixIcon: const Icon(Icons.search),
-                isDense: true,
-              ),
-            ),
+          SearchField(
+            controller: _searchController,
+            hintText: l10n.discoverSearch,
+            onChanged: (v) => setState(() => _search = v),
           ),
           if (availableLanguages.isNotEmpty)
             _LanguageFilterBar(
@@ -88,23 +92,18 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
           Expanded(
             child: recipesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) =>
-                  Center(child: Text(l10n.errorWithMessage(e.toString()))),
+              error: (e, _) => EmptyState(
+                icon: Icons.error_outline,
+                title: l10n.errorWithMessage(e.toString()),
+              ),
               data: (recipes) {
                 final filtered = _applyFilters(recipes, effectiveLanguage);
                 if (filtered.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Text(
-                        l10n.discoverEmpty,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.textMuted),
-                      ),
-                    ),
-                  );
+                  return _emptyState(l10n, recipes.isEmpty, effectiveLanguage);
                 }
                 return ListView.builder(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
                   itemCount: filtered.length,
                   itemBuilder: (context, i) => RecipeCard(
@@ -127,10 +126,36 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
   List<Recipe> _applyFilters(List<Recipe> recipes, String? language) {
     return recipes.where((r) {
       final matchesLanguage = language == null || r.language == language;
-      final matchesSearch = _search.isEmpty ||
-          r.title.toLowerCase().contains(_search.toLowerCase());
-      return matchesLanguage && matchesSearch;
+      return matchesLanguage && r.matchesSearch(_search);
     }).toList();
+  }
+
+  /// Nothing to show. When the feed has recipes and only the filters hide
+  /// them, offer a one-tap way back to a full feed instead of a dead end.
+  Widget _emptyState(
+    AppLocalizations l10n,
+    bool feedEmpty,
+    String? language,
+  ) {
+    if (feedEmpty) {
+      return EmptyState.fromText(l10n.discoverEmpty, icon: Icons.public);
+    }
+    final searching = _search.trim().isNotEmpty;
+    return EmptyState(
+      icon: Icons.search_off,
+      title: l10n.recipesEmptyNoMatchTitle,
+      action: OutlinedButton.icon(
+        onPressed: () {
+          _searchController.clear();
+          setState(() => _search = '');
+          if (language != null) {
+            ref.read(contentLanguageProvider.notifier).setLanguage(null);
+          }
+        },
+        icon: Icon(searching ? Icons.filter_alt_off_outlined : Icons.translate),
+        label: Text(searching ? l10n.clearFilters : l10n.filterAllLanguages),
+      ),
+    );
   }
 }
 

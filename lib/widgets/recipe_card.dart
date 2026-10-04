@@ -5,6 +5,7 @@ import '../models/category.dart';
 import '../models/recipe.dart';
 import '../providers/locale_provider.dart';
 import '../theme/app_theme.dart';
+import 'category_chip.dart';
 
 /// Summary card for a recipe in a list.
 class RecipeCard extends StatelessWidget {
@@ -40,29 +41,37 @@ class RecipeCard extends StatelessWidget {
         .map((id) => categoriesById[id])
         .whereType<Category>()
         .toList();
+    const metaStyle = TextStyle(fontSize: 12, color: AppColors.textMuted);
 
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.fromLTRB(14, 14, trailing == null ? 14 : 4, 14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _Monogram(
+                title: recipe.title,
+                color: chips.isEmpty ? AppColors.primary : chips.first.colorValue,
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
                             recipe.title,
                             style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
                               color: AppColors.text,
+                              height: 1.25,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -70,9 +79,9 @@ class RecipeCard extends StatelessWidget {
                         ),
                         if (recipe.isPublic)
                           const Padding(
-                            padding: EdgeInsets.only(left: 6),
+                            padding: EdgeInsets.only(left: 6, top: 2),
                             child: Icon(Icons.public,
-                                size: 16, color: AppColors.primary),
+                                size: 16, color: AppColors.primaryDeep),
                           ),
                       ],
                     ),
@@ -80,7 +89,10 @@ class RecipeCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         recipe.description,
-                        style: const TextStyle(color: AppColors.textMuted),
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          height: 1.3,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -88,8 +100,8 @@ class RecipeCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.restaurant_menu,
-                            size: 14, color: Colors.grey.shade400),
+                        const Icon(Icons.restaurant_menu,
+                            size: 14, color: AppColors.textMuted),
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
@@ -97,33 +109,37 @@ class RecipeCard extends StatelessWidget {
                               l10n.ingredientsCount(recipe.ingredients.length),
                               l10n.stepsCount(recipe.steps.length),
                             ),
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade500),
+                            style: metaStyle,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (showLanguage) ...[
-                          const SizedBox(width: 8),
-                          _LanguageBadge(code: recipe.language),
-                        ],
                         if (showLikes) ...[
-                          const SizedBox(width: 8),
-                          Icon(Icons.favorite,
-                              size: 13, color: AppColors.primary),
+                          const SizedBox(width: 10),
+                          const Icon(Icons.favorite,
+                              size: 13, color: AppColors.primaryDeep),
                           const SizedBox(width: 3),
-                          Text(
-                            '${recipe.likeCount}',
-                            style: TextStyle(
-                                fontSize: 12, color: Colors.grey.shade600),
-                          ),
+                          Text('${recipe.likeCount}', style: metaStyle),
                         ],
                       ],
                     ),
-                    if (showAuthor) ...[
-                      const SizedBox(height: 4),
-                      Text(l10n.recipeByAuthor(recipe.authorName),
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.grey.shade500)),
+                    if (showAuthor || showLanguage) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          if (showAuthor)
+                            Flexible(
+                              child: Text(
+                                l10n.recipeByAuthor(recipe.authorName),
+                                style: metaStyle,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          if (showAuthor && showLanguage)
+                            const SizedBox(width: 8),
+                          if (showLanguage)
+                            _LanguageBadge(code: recipe.language),
+                        ],
+                      ),
                     ],
                     if (chips.isNotEmpty) ...[
                       const SizedBox(height: 10),
@@ -132,22 +148,7 @@ class RecipeCard extends StatelessWidget {
                         runSpacing: 6,
                         children: [
                           for (final c in chips)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: c.colorValue.withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                c.name,
-                                style: TextStyle(
-                                  color: c.colorValue,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
+                            CategoryChip(category: c, dense: true),
                         ],
                       ),
                     ],
@@ -157,6 +158,40 @@ class RecipeCard extends StatelessWidget {
               ?trailing,
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A rounded tile with the recipe's first letter, tinted with its first
+/// category's color — a visual anchor for each row, since recipes have no
+/// photos.
+class _Monogram extends StatelessWidget {
+  const _Monogram({required this.title, required this.color});
+
+  final String title;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmed = title.trim();
+    final letter =
+        trimmed.isEmpty ? '🥐' : trimmed.characters.first.toUpperCase();
+    return Container(
+      width: 46,
+      height: 46,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          color: AppColors.ink(color),
         ),
       ),
     );
@@ -173,20 +208,20 @@ class _LanguageBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.12),
+        color: AppColors.primarySoft,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.translate, size: 11, color: AppColors.primaryDark),
+          const Icon(Icons.translate, size: 11, color: AppColors.primaryDeep),
           const SizedBox(width: 4),
           Text(
             languageDisplayName(code),
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: AppColors.primaryDark,
+              color: AppColors.primaryDeep,
             ),
           ),
         ],

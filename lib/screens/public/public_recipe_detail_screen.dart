@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,8 @@ import '../../models/comment.dart';
 import '../../models/recipe.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/copy_recipe_bar.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/recipe_moderation.dart';
 import '../../widgets/recipe_view.dart';
 
@@ -28,13 +31,19 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
         appBar: AppBar(),
-        body: Center(child: Text(l10n.errorWithMessage(e.toString()))),
+        body: EmptyState(
+          icon: Icons.error_outline,
+          title: l10n.errorWithMessage(e.toString()),
+        ),
       ),
       data: (recipe) {
         if (recipe == null || !recipe.isPublic) {
           return Scaffold(
             appBar: AppBar(),
-            body: Center(child: Text(l10n.recipeNotAvailable)),
+            body: EmptyState(
+              icon: Icons.visibility_off_outlined,
+              title: l10n.recipeNotAvailable,
+            ),
           );
         }
         return Scaffold(
@@ -82,16 +91,7 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
             recipe: recipe,
             footer: _CommentsSection(recipeId: recipe.id),
           ),
-          bottomNavigationBar: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: ElevatedButton.icon(
-                onPressed: () => _copy(context, ref, recipe),
-                icon: const Icon(Icons.bookmark_add_outlined),
-                label: Text(l10n.copyToMyRecipes),
-              ),
-            ),
-          ),
+          bottomNavigationBar: CopyRecipeBar(recipe: recipe),
         );
       },
     );
@@ -115,25 +115,6 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
     // The recipe is now hidden; leave the detail screen.
     if (context.mounted && context.canPop()) context.pop();
   }
-
-  Future<void> _copy(BuildContext context, WidgetRef ref, Recipe recipe) async {
-    final l10n = AppLocalizations.of(context);
-    final uid = ref.read(currentUidProvider);
-    if (uid == null) return;
-    // Await the profile so a cold read doesn't fall back to 'Guest' for a
-    // signed-in user.
-    final profile = await ref.read(currentAppUserProvider.future);
-    final authorName = profile?.name ?? 'Guest';
-    final id = await ref
-        .read(recipeRepositoryProvider)
-        .copyRecipe(source: recipe, uid: uid, authorName: authorName);
-    if (context.mounted) {
-      context.push('/recipes/$id');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.copiedToRecipes)),
-      );
-    }
-  }
 }
 
 /// Heart toggle with a live like count. Tapping likes/unlikes the recipe; the
@@ -152,6 +133,7 @@ class _LikeButton extends ConsumerWidget {
       onPressed: () async {
         final uid = ref.read(currentUidProvider);
         if (uid == null) return;
+        HapticFeedback.lightImpact();
         try {
           await ref.read(recipeRepositoryProvider).toggleLike(recipe.id, uid);
         } catch (e) {
@@ -168,7 +150,7 @@ class _LikeButton extends ConsumerWidget {
       ),
       label: Text('${recipe.likeCount}'),
       style: TextButton.styleFrom(
-        foregroundColor: liked ? AppColors.primary : AppColors.textMuted,
+        foregroundColor: liked ? AppColors.primaryDeep : AppColors.textMuted,
       ),
     );
   }
@@ -249,45 +231,51 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 32),
-        const Divider(),
-        const SizedBox(height: 8),
-        Text(l10n.commentsTitle,
-            style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryDark)),
+        const SizedBox(height: 28),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(l10n.commentsTitle,
+              style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primaryDeep)),
+        ),
         const SizedBox(height: 12),
         TextField(
           controller: _content,
           minLines: 1,
           maxLines: 4,
+          textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(
             hintText: l10n.commentAddHint,
-            isDense: true,
+            suffixIcon: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _content,
+              builder: (context, value, _) => _sending
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      tooltip: l10n.commentPost,
+                      icon: const Icon(Icons.send_rounded),
+                      color: AppColors.primaryDeep,
+                      onPressed: value.text.trim().isEmpty ? null : _send,
+                    ),
+            ),
           ),
         ),
-        Row(
-          children: [
-            if (!isGuest)
-              Expanded(
-                child: CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  dense: true,
-                  title: Text(l10n.commentPostAnonymously),
-                  value: _anonymous,
-                  onChanged: (v) => setState(() => _anonymous = v ?? false),
-                ),
-              )
-            else
-              const Spacer(),
-            TextButton(
-              onPressed: _sending ? null : _send,
-              child: Text(_sending ? l10n.commentPosting : l10n.commentPost),
-            ),
-          ],
-        ),
+        if (!isGuest)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            dense: true,
+            title: Text(l10n.commentPostAnonymously),
+            value: _anonymous,
+            onChanged: (v) => setState(() => _anonymous = v ?? false),
+          ),
         const SizedBox(height: 8),
         commentsAsync.when(
           loading: () =>
@@ -297,8 +285,17 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
             if (comments.isEmpty) {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(l10n.commentsEmpty,
-                    style: const TextStyle(color: AppColors.textMuted)),
+                child: Row(
+                  children: [
+                    const Icon(Icons.chat_bubble_outline,
+                        size: 18, color: AppColors.textMuted),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(l10n.commentsEmpty,
+                          style: const TextStyle(color: AppColors.textMuted)),
+                    ),
+                  ],
+                ),
               );
             }
             return Column(
@@ -335,15 +332,30 @@ class _CommentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final date = comment.createdAt;
     final dateStr = date == null ? '' : DateFormat.yMMMd().add_jm().format(date);
+    // Anonymous comments (and legacy ones with no author) get a person icon
+    // rather than the "A" of "Anonymous".
+    final hidden = comment.anonymous || comment.userId == null;
+    final name = comment.displayName.trim();
+    final initial =
+        hidden || name.isEmpty ? null : name.characters.first.toUpperCase();
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 16,
-            backgroundColor: AppColors.primary,
-            child: Icon(Icons.person, size: 18, color: Colors.white),
+            backgroundColor: AppColors.primarySoft,
+            child: initial == null
+                ? const Icon(Icons.person,
+                    size: 18, color: AppColors.primaryDeep)
+                : Text(
+                    initial,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primaryDeep,
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -352,12 +364,15 @@ class _CommentTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(comment.displayName,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    Flexible(
+                      child: Text(comment.displayName,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                    ),
                     const SizedBox(width: 8),
                     Text(dateStr,
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey.shade500)),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.textMuted)),
                   ],
                 ),
                 const SizedBox(height: 2),
@@ -367,6 +382,7 @@ class _CommentTile extends StatelessWidget {
           ),
           if (canDelete)
             IconButton(
+              tooltip: AppLocalizations.of(context).actionDelete,
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.delete_outline,
                   size: 18, color: AppColors.textMuted),

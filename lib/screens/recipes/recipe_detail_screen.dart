@@ -6,6 +6,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../models/recipe.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/recipe_view.dart';
 
 /// View a recipe the current user owns, with edit/delete/share/publish actions.
@@ -47,13 +48,19 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
           body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
         appBar: AppBar(),
-        body: Center(child: Text(l10n.errorWithMessage(e.toString()))),
+        body: EmptyState(
+          icon: Icons.error_outline,
+          title: l10n.errorWithMessage(e.toString()),
+        ),
       ),
       data: (recipe) {
         if (recipe == null) {
           return Scaffold(
             appBar: AppBar(),
-            body: Center(child: Text(l10n.recipeNotFound)),
+            body: EmptyState(
+              icon: Icons.no_food_outlined,
+              title: l10n.recipeNotFound,
+            ),
           );
         }
         final isOwner = recipe.userId == uid;
@@ -69,16 +76,17 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
                 ),
               if (isOwner && online)
                 PopupMenuButton<String>(
+                  tooltip: l10n.tooltipMore,
                   onSelected: (v) => _onMenu(context, ref, recipe, v),
                   itemBuilder: (context) => [
-                    PopupMenuItem(value: 'edit', child: Text(l10n.menuEdit)),
-                    PopupMenuItem(
-                      value: 'public',
-                      child: Text(recipe.isPublic
-                          ? l10n.menuMakePrivate
-                          : l10n.menuMakePublic),
-                    ),
-                    PopupMenuItem(value: 'delete', child: Text(l10n.menuDelete)),
+                    _menuItem('edit', Icons.edit_outlined, l10n.menuEdit),
+                    recipe.isPublic
+                        ? _menuItem(
+                            'public', Icons.lock_outline, l10n.menuMakePrivate)
+                        : _menuItem(
+                            'public', Icons.public, l10n.menuMakePublic),
+                    _menuItem('delete', Icons.delete_outline, l10n.menuDelete,
+                        color: AppColors.danger),
                   ],
                 ),
             ],
@@ -86,6 +94,22 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
           body: RecipeView(recipe: recipe, categoriesById: categoriesById),
         );
       },
+    );
+  }
+
+  PopupMenuItem<String> _menuItem(
+    String value,
+    IconData icon,
+    String label, {
+    Color? color,
+  }) {
+    return PopupMenuItem(
+      value: value,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(icon, color: color ?? AppColors.textMuted),
+        title: Text(label, style: TextStyle(color: color)),
+      ),
     );
   }
 

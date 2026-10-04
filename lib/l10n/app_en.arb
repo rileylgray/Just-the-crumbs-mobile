@@ -17,6 +17,10 @@
   "actionSubmit": "Submit",
   "actionUndo": "Undo",
   "actionContinue": "Continue",
+  "actionPaste": "Paste",
+  "actionClear": "Clear",
+  "actionDiscard": "Discard",
+  "actionKeepEditing": "Keep editing",
   "tooltipShare": "Share",
   "tooltipMore": "More",
   "errorWithMessage": "Error: {error}",
@@ -54,6 +58,7 @@
   "profileAdPrivacy": "Ad privacy choices",
   "profileAdPrivacySubtitle": "Change how ads use your data",
   "languagePickerTitle": "Choose a language",
+  "profileSettings": "Settings",
 
   "profileEditName": "Edit display name",
   "profileEditNameTitle": "Display name",
@@ -69,6 +74,8 @@
   "recipesEmptyTitle": "No recipes yet",
   "recipesEmptyNoMatchBody": "Try a different search or category.",
   "recipesEmptyBody": "Tap “Add recipe” to create or import your first one.",
+  "clearFilters": "Clear filters",
+  "addSheetTitle": "Add a recipe",
   "addSheetCreateTitle": "Create recipe",
   "addSheetCreateSubtitle": "Enter ingredients and steps by hand",
   "addSheetImportTitle": "Import from URL",
@@ -118,6 +125,8 @@
   "saveChanges": "Save changes",
   "createRecipe": "Create recipe",
   "recipeLanguageLabel": "Language",
+  "discardChangesTitle": "Discard changes?",
+  "discardChangesBody": "Your changes to this recipe haven't been saved yet.",
 
   "importTitle": "Import recipe",
   "importIntro": "Paste a link from a recipe website or TikTok. We'll pull out the ingredients and steps so you can review and save.",
@@ -130,6 +139,7 @@
   "importOfflineError": "You're offline. Connect to the internet to import a recipe from a link.",
   "importNetworkError": "Couldn't reach that page. Check your connection and try again.",
   "importReadError": "We couldn't find a recipe on that page. Try a different link.",
+  "clipboardNoLink": "There's no link on the clipboard",
   "offlineBannerEditing": "You're offline — your changes save on this device and sync when you reconnect.",
 
   "categoriesTitle": "Categories",
@@ -185,6 +195,9 @@
   "unitsImperial": "Imperial",
   "cookMode": "Cook mode",
   "cookModeOnHint": "Larger text, screen stays on",
+  "copyIngredients": "Copy ingredients",
+  "ingredientsCopied": "Ingredients copied to the clipboard",
+  "uncheckAll": "Uncheck all",
   "recipeSource": "Source: {url}",
   "@recipeSource": {
     "placeholders": { "url": { "type": "String" } }

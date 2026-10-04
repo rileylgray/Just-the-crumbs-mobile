@@ -178,6 +178,30 @@ abstract class AppLocalizations {
   /// **'Continue'**
   String get actionContinue;
 
+  /// No description provided for @actionPaste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get actionPaste;
+
+  /// No description provided for @actionClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get actionClear;
+
+  /// No description provided for @actionDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get actionDiscard;
+
+  /// No description provided for @actionKeepEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get actionKeepEditing;
+
   /// No description provided for @tooltipShare.
   ///
   /// In en, this message translates to:
@@ -322,6 +346,12 @@ abstract class AppLocalizations {
   /// **'Choose a language'**
   String get languagePickerTitle;
 
+  /// No description provided for @profileSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get profileSettings;
+
   /// No description provided for @profileEditName.
   ///
   /// In en, this message translates to:
@@ -399,6 +429,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap “Add recipe” to create or import your first one.'**
   String get recipesEmptyBody;
+
+  /// No description provided for @clearFilters.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filters'**
+  String get clearFilters;
+
+  /// No description provided for @addSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a recipe'**
+  String get addSheetTitle;
 
   /// No description provided for @addSheetCreateTitle.
   ///
@@ -664,6 +706,18 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get recipeLanguageLabel;
 
+  /// No description provided for @discardChangesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get discardChangesTitle;
+
+  /// No description provided for @discardChangesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your changes to this recipe haven\'t been saved yet.'**
+  String get discardChangesBody;
+
   /// No description provided for @importTitle.
   ///
   /// In en, this message translates to:
@@ -729,6 +783,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'We couldn\'t find a recipe on that page. Try a different link.'**
   String get importReadError;
+
+  /// No description provided for @clipboardNoLink.
+  ///
+  /// In en, this message translates to:
+  /// **'There\'s no link on the clipboard'**
+  String get clipboardNoLink;
 
   /// No description provided for @offlineBannerEditing.
   ///
@@ -969,6 +1029,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Larger text, screen stays on'**
   String get cookModeOnHint;
+
+  /// No description provided for @copyIngredients.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy ingredients'**
+  String get copyIngredients;
+
+  /// No description provided for @ingredientsCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Ingredients copied to the clipboard'**
+  String get ingredientsCopied;
+
+  /// No description provided for @uncheckAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncheck all'**
+  String get uncheckAll;
 
   /// No description provided for @recipeSource.
   ///

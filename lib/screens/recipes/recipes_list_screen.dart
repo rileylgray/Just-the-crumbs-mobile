@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,9 +7,12 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../models/category.dart';
 import '../../models/recipe.dart';
 import '../../providers/providers.dart';
+import '../../services/import/shared_link.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/offline_banner.dart';
 import '../../widgets/recipe_card.dart';
+import '../../widgets/search_field.dart';
 
 class RecipesListScreen extends ConsumerStatefulWidget {
   const RecipesListScreen({super.key});
@@ -18,10 +22,26 @@ class RecipesListScreen extends ConsumerStatefulWidget {
 }
 
 class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
+  final _searchController = TextEditingController();
   String _search = '';
   String? _selectedCategoryId;
 
-  bool get _filtering => _search.isNotEmpty || _selectedCategoryId != null;
+  bool get _filtering =>
+      _search.trim().isNotEmpty || _selectedCategoryId != null;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _clearFilters() {
+    _searchController.clear();
+    setState(() {
+      _search = '';
+      _selectedCategoryId = null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +74,11 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
       body: Column(
         children: [
           if (!online) const OfflineBanner(),
-          _SearchBar(onChanged: (v) => setState(() => _search = v)),
+          SearchField(
+            controller: _searchController,
+            hintText: l10n.recipesSearch,
+            onChanged: (v) => setState(() => _search = v),
+          ),
           if (categories.isNotEmpty)
             _CategoryFilterBar(
               categories: categories,
@@ -64,13 +88,13 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
           Expanded(
             child: recipesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) =>
-                  Center(child: Text(l10n.errorWithMessage(e.toString()))),
+              error: (e, _) => EmptyState(
+                icon: Icons.error_outline,
+                title: l10n.errorWithMessage(e.toString()),
+              ),
               data: (recipes) {
                 final filtered = _applyFilters(recipes);
-                if (filtered.isEmpty) {
-                  return _EmptyState(filtering: _filtering);
-                }
+                if (filtered.isEmpty) return _emptyState(l10n, online);
                 return (_filtering || !online)
                     ? _plainList(filtered, categoriesById)
                     : _reorderableList(filtered, categoriesById);
@@ -84,18 +108,45 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
 
   List<Recipe> _applyFilters(List<Recipe> recipes) {
     return recipes.where((r) {
-      final matchesSearch =
-          _search.isEmpty ||
-          r.title.toLowerCase().contains(_search.toLowerCase());
       final matchesCategory =
           _selectedCategoryId == null ||
           r.categoryIds.contains(_selectedCategoryId);
-      return matchesSearch && matchesCategory;
+      return matchesCategory && r.matchesSearch(_search);
     }).toList();
+  }
+
+  /// Nothing to show: either no recipes at all (offer to add one) or none that
+  /// match the search/category (offer to reset those).
+  Widget _emptyState(AppLocalizations l10n, bool online) {
+    if (_filtering) {
+      return EmptyState(
+        icon: Icons.search_off,
+        title: l10n.recipesEmptyNoMatchTitle,
+        message: l10n.recipesEmptyNoMatchBody,
+        action: OutlinedButton.icon(
+          onPressed: _clearFilters,
+          icon: const Icon(Icons.filter_alt_off_outlined),
+          label: Text(l10n.clearFilters),
+        ),
+      );
+    }
+    return EmptyState(
+      emoji: '🥐',
+      title: l10n.recipesEmptyTitle,
+      message: online ? l10n.recipesEmptyBody : null,
+      action: online
+          ? FilledButton.icon(
+              onPressed: _showAddSheet,
+              icon: const Icon(Icons.add),
+              label: Text(l10n.recipesAddRecipe),
+            )
+          : null,
+    );
   }
 
   Widget _plainList(List<Recipe> recipes, Map<String, Category> cats) {
     return ListView.builder(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
       itemCount: recipes.length,
       itemBuilder: (context, i) => RecipeCard(
@@ -108,8 +159,25 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
 
   Widget _reorderableList(List<Recipe> recipes, Map<String, Category> cats) {
     return ReorderableListView.builder(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
       itemCount: recipes.length,
+      onReorderStart: (_) => HapticFeedback.mediumImpact(),
+      // Lift the dragged card with a soft shadow that follows its rounded
+      // corners, rather than the default square-cornered elevation.
+      proxyDecorator: (child, index, animation) => AnimatedBuilder(
+        animation: animation,
+        builder: (context, child) => Material(
+          color: Colors.transparent,
+          elevation: Tween<double>(begin: 0, end: 8).evaluate(
+            CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          ),
+          shadowColor: Colors.black38,
+          borderRadius: BorderRadius.circular(16),
+          child: child,
+        ),
+        child: child,
+      ),
       onReorder: (oldIndex, newIndex) async {
         final reordered = List<Recipe>.of(recipes);
         if (newIndex > oldIndex) newIndex -= 1;
@@ -126,9 +194,9 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
           onTap: () => context.push('/recipes/${recipes[i].id}'),
           trailing: ReorderableDragStartListener(
             index: i,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 8, top: 4),
-              child: Icon(Icons.drag_handle, color: Colors.grey.shade400),
+            child: const Padding(
+              padding: EdgeInsets.fromLTRB(8, 10, 10, 10),
+              child: Icon(Icons.drag_indicator, color: AppColors.inputBorder),
             ),
           ),
         ),
@@ -143,9 +211,22 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
       builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(
+                l10n.addSheetTitle,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+              ),
+            ),
             ListTile(
-              leading: const Icon(Icons.edit_note, color: AppColors.primary),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: const _SheetIcon(Icons.edit_note),
               title: Text(l10n.addSheetCreateTitle),
               subtitle: Text(l10n.addSheetCreateSubtitle),
               onTap: () {
@@ -154,7 +235,8 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.link, color: AppColors.primary),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: const _SheetIcon(Icons.link),
               title: Text(l10n.addSheetImportTitle),
               subtitle: Text(l10n.addSheetImportSubtitle),
               onTap: () {
@@ -163,7 +245,8 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.qr_code, color: AppColors.primary),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+              leading: const _SheetIcon(Icons.tag),
               title: Text(l10n.addSheetCodeTitle),
               subtitle: Text(l10n.addSheetCodeSubtitle),
               onTap: () {
@@ -171,6 +254,7 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
                 _showCodeDialog();
               },
             ),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -180,7 +264,7 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
   Future<void> _showCodeDialog() async {
     final l10n = AppLocalizations.of(context);
     final controller = TextEditingController();
-    final code = await showDialog<String>(
+    final input = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.shareCodeDialogTitle),
@@ -188,9 +272,22 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
           controller: controller,
           autofocus: true,
           textCapitalization: TextCapitalization.characters,
+          autocorrect: false,
           decoration: InputDecoration(
             hintText: l10n.shareCodeHint,
             prefixIcon: const Icon(Icons.tag),
+            // Pasting the whole share message (or the link) works too: the
+            // code is picked out of it.
+            suffixIcon: IconButton(
+              tooltip: l10n.actionPaste,
+              icon: const Icon(Icons.content_paste),
+              onPressed: () async {
+                final data = await Clipboard.getData(Clipboard.kTextPlain);
+                final text = data?.text;
+                if (text == null || text.trim().isEmpty) return;
+                controller.text = shareCodeIn(text) ?? text.trim();
+              },
+            ),
           ),
           onSubmitted: (v) => Navigator.pop(dialogContext, v.trim()),
         ),
@@ -207,29 +304,9 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
         ],
       ),
     );
-    if (code != null && code.isNotEmpty && mounted) {
-      context.push('/share/${code.toUpperCase()}');
-    }
-  }
-}
-
-class _SearchBar extends StatelessWidget {
-  const _SearchBar({required this.onChanged});
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: TextField(
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          hintText: AppLocalizations.of(context).recipesSearch,
-          prefixIcon: const Icon(Icons.search),
-          isDense: true,
-        ),
-      ),
-    );
+    if (input == null || input.isEmpty || !mounted) return;
+    final code = shareCodeIn(input) ?? input.toUpperCase();
+    context.push('/share/${Uri.encodeComponent(code)}');
   }
 }
 
@@ -264,9 +341,10 @@ class _CategoryFilterBar extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(right: 8, top: 6, bottom: 6),
               child: ChoiceChip(
+                avatar: CircleAvatar(backgroundColor: c.colorValue, radius: 5),
                 label: Text(c.name),
                 selected: selectedId == c.id,
-                selectedColor: c.colorValue.withValues(alpha: 0.3),
+                selectedColor: c.colorValue.withValues(alpha: 0.25),
                 onSelected: (_) => onSelected(selectedId == c.id ? null : c.id),
               ),
             ),
@@ -276,36 +354,21 @@ class _CategoryFilterBar extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.filtering});
-  final bool filtering;
+/// A brand-tinted circular badge for an option in the add-recipe sheet.
+class _SheetIcon extends StatelessWidget {
+  const _SheetIcon(this.icon);
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('🥐', style: TextStyle(fontSize: 56)),
-            const SizedBox(height: 16),
-            Text(
-              filtering
-                  ? l10n.recipesEmptyNoMatchTitle
-                  : l10n.recipesEmptyTitle,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              filtering ? l10n.recipesEmptyNoMatchBody : l10n.recipesEmptyBody,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textMuted),
-            ),
-          ],
-        ),
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: const BoxDecoration(
+        color: AppColors.primarySoft,
+        shape: BoxShape.circle,
       ),
+      child: Icon(icon, color: AppColors.primaryDeep, size: 22),
     );
   }
 }

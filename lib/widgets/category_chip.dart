@@ -1,41 +1,45 @@
 import 'package:flutter/material.dart';
 
 import '../models/category.dart';
+import '../theme/app_theme.dart';
 
-/// A small colored chip representing a category.
+/// A small colored pill representing a category.
 class CategoryChip extends StatelessWidget {
   const CategoryChip({
     super.key,
     required this.category,
     this.selected = false,
+    this.dense = false,
     this.onTap,
   });
 
   final Category category;
   final bool selected;
+
+  /// Smaller text and padding, for recipe cards.
+  final bool dense;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = category.colorValue;
-    final luminance = color.computeLuminance();
-    final fg = luminance > 0.55 ? Colors.black87 : Colors.white;
     return Material(
       color: selected ? color : color.withValues(alpha: 0.16),
-      shape: StadiumBorder(
-        side: BorderSide(color: color, width: selected ? 0 : 1),
-      ),
+      shape: const StadiumBorder(),
       child: InkWell(
         onTap: onTap,
         customBorder: const StadiumBorder(),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: EdgeInsets.symmetric(
+            horizontal: dense ? 10 : 12,
+            vertical: dense ? 4 : 6,
+          ),
           child: Text(
             category.name,
             style: TextStyle(
-              color: selected ? fg : color,
+              color: selected ? AppColors.onColor(color) : AppColors.ink(color),
               fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontSize: dense ? 12 : 13,
             ),
           ),
         ),

@@ -10,7 +10,9 @@ rewrite of the original Rails app; it does not connect to any backend of its own
   sign in with Google to save recipes to your account. Guest recipes carry over
   when you link a Google account.
 - **Recipes** — create, edit, delete; ingredients + step-by-step instructions;
-  search by title; drag to reorder; tag with colored categories.
+  search by title, description or ingredient; drag to reorder; tag with colored
+  categories. While cooking, tick off ingredients and steps, copy the
+  ingredient list (for a shopping list), and switch on cook mode.
 - **Import from a URL** — paste a recipe link (or TikTok) and the app parses the
   ingredients and steps client-side (Schema.org JSON-LD first, then HTML
   heuristics), then opens a pre-filled form to review and save. For TikTok it
@@ -85,4 +87,6 @@ Covers the recipe import parser (JSON-LD, `@graph`, `HowToSection`, HTML
 fallback, and error handling) and the TikTok parser (description sections,
 single-line/inline segmentation, subtitle-transcript fallback, and the AI
 fallback — used only when heuristics come up short, verified with an injected
-fake so tests stay offline).
+fake so tests stay offline), plus widget tests for the shared UI pieces (search
+field, empty states, recipe card, and the recipe view's checklist and
+copy-ingredients).

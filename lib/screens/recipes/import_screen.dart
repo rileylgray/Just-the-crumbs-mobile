@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -9,6 +10,7 @@ import 'package:http/http.dart' as http;
 import '../../l10n/gen/app_localizations.dart';
 import '../../providers/providers.dart';
 import '../../services/import/recipe_import_service.dart';
+import '../../services/import/shared_link.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/offline_banner.dart';
 
@@ -45,9 +47,28 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     super.dispose();
   }
 
-  Future<void> _import() async {
+  /// Fills the field from the clipboard, picking the link out of whatever was
+  /// copied — usually a caption with the link buried in it.
+  Future<void> _paste() async {
     final l10n = AppLocalizations.of(context);
-    final url = _url.text.trim();
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final link = firstLinkIn(data?.text ?? '');
+    if (!mounted) return;
+    setState(() {
+      if (link == null) {
+        _error = l10n.clipboardNoLink;
+      } else {
+        _url.text = link;
+        _error = null;
+      }
+    });
+  }
+
+  Future<void> _import() async {
+    if (_loading) return;
+    final l10n = AppLocalizations.of(context);
+    // Accept a whole pasted caption, not only a bare link.
+    final url = firstLinkIn(_url.text) ?? _url.text.trim();
     if (url.isEmpty) {
       setState(() => _error = l10n.importPasteUrlError);
       return;
@@ -126,7 +147,6 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.importTitle),
-        backgroundColor: AppColors.surface,
       ),
       body: Column(
         children: [
@@ -135,24 +155,54 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                Text(
-                  l10n.importIntro,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
-                    height: 1.4,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primarySoft,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.auto_awesome,
+                          color: AppColors.primaryDeep, size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        l10n.importIntro,
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
                 TextField(
                   controller: _url,
                   keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.go,
                   autofocus: widget.initialUrl == null,
                   decoration: InputDecoration(
                     labelText: l10n.importUrlLabel,
                     hintText: l10n.importUrlHint,
                     prefixIcon: const Icon(Icons.link),
+                    suffixIcon: IconButton(
+                      tooltip: l10n.actionPaste,
+                      icon: const Icon(Icons.content_paste),
+                      onPressed: _loading ? null : _paste,
+                    ),
                     errorText: _error,
+                    errorMaxLines: 3,
                   ),
+                  // A stale error shouldn't linger while the link is fixed.
+                  onChanged: (_) {
+                    if (_error != null) setState(() => _error = null);
+                  },
                   onSubmitted: (_) => _import(),
                 ),
                 const SizedBox(height: 20),
@@ -173,10 +223,13 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
                   ),
                 ),
                 if (_loading) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
+                  const LinearProgressIndicator(minHeight: 3),
+                  const SizedBox(height: 12),
                   Center(
                     child: Text(
                       l10n.importProgress,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(color: AppColors.textMuted),
                     ),
                   ),

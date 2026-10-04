@@ -6,6 +6,7 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../models/category.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/empty_state.dart';
 
 class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
@@ -14,11 +15,9 @@ class CategoriesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final categoriesAsync = ref.watch(userCategoriesProvider);
+    final recipes = ref.watch(userRecipesProvider).value ?? const [];
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.categoriesTitle),
-        backgroundColor: AppColors.surface,
-      ),
+      appBar: AppBar(title: Text(l10n.categoriesTitle)),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/categories/new'),
         icon: const Icon(Icons.add),
@@ -26,27 +25,27 @@ class CategoriesScreen extends ConsumerWidget {
       ),
       body: categoriesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            Center(child: Text(l10n.errorWithMessage(e.toString()))),
+        error: (e, _) => EmptyState(
+          icon: Icons.error_outline,
+          title: l10n.errorWithMessage(e.toString()),
+        ),
         data: (categories) {
           if (categories.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(
-                  l10n.categoriesEmpty,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textMuted),
-                ),
-              ),
+            return EmptyState.fromText(
+              l10n.categoriesEmpty,
+              icon: Icons.label_outline,
             );
           }
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 90),
             itemCount: categories.length,
             separatorBuilder: (_, _) => const SizedBox(height: 4),
-            itemBuilder: (context, i) =>
-                _CategoryTile(category: categories[i]),
+            itemBuilder: (context, i) => _CategoryTile(
+              category: categories[i],
+              recipeCount: recipes
+                  .where((r) => r.categoryIds.contains(categories[i].id))
+                  .length,
+            ),
           );
         },
       ),
@@ -55,26 +54,43 @@ class CategoriesScreen extends ConsumerWidget {
 }
 
 class _CategoryTile extends ConsumerWidget {
-  const _CategoryTile({required this.category});
+  const _CategoryTile({required this.category, required this.recipeCount});
   final Category category;
+  final int recipeCount;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final color = category.colorValue;
     return Card(
       margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
       child: ListTile(
-        leading: CircleAvatar(backgroundColor: category.colorValue, radius: 14),
+        contentPadding: const EdgeInsets.only(left: 16, right: 4),
+        onTap: () => context.push('/categories/${category.id}/edit'),
+        leading: CircleAvatar(
+          backgroundColor: color,
+          radius: 18,
+          child: Icon(Icons.label, size: 18, color: AppColors.onColor(color)),
+        ),
         title: Text(category.name,
             style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(
+          l10n.profileRecipeCount(recipeCount),
+          style: const TextStyle(color: AppColors.textMuted),
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.edit_outlined),
+              tooltip: l10n.menuEdit,
+              icon: const Icon(Icons.edit_outlined, color: AppColors.textMuted),
               onPressed: () => context.push('/categories/${category.id}/edit'),
             ),
             IconButton(
-              icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+              tooltip: l10n.actionDelete,
+              icon:
+                  const Icon(Icons.delete_outline, color: AppColors.textMuted),
               onPressed: () => _confirmDelete(context, ref),
             ),
           ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../l10n/gen/app_localizations.dart';
@@ -21,13 +22,18 @@ class ScaffoldWithNavBar extends StatelessWidget {
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const Divider(),
           const BannerAdWidget(),
           NavigationBar(
             selectedIndex: navigationShell.currentIndex,
-            onDestinationSelected: (index) => navigationShell.goBranch(
-              index,
-              initialLocation: index == navigationShell.currentIndex,
-            ),
+            onDestinationSelected: (index) {
+              HapticFeedback.selectionClick();
+              // Re-tapping the current tab returns it to its root screen.
+              navigationShell.goBranch(
+                index,
+                initialLocation: index == navigationShell.currentIndex,
+              );
+            },
             destinations: [
               NavigationDestination(
                 icon: const Icon(Icons.menu_book_outlined),
