@@ -57,15 +57,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actionKeepEditing => 'Keep editing';
 
   @override
+  String get actionRetry => 'Try again';
+
+  @override
   String get tooltipShare => 'Share';
 
   @override
   String get tooltipMore => 'More';
 
   @override
-  String errorWithMessage(String error) {
-    return 'Error: $error';
-  }
+  String get errorOffline =>
+      'You\'re offline. Check your connection and try again.';
+
+  @override
+  String get errorPermission => 'You don\'t have permission to do that.';
+
+  @override
+  String get errorGeneric => 'Something went wrong. Please try again.';
 
   @override
   String get profileGuestName => 'Guest';
@@ -113,6 +121,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileSignOut => 'Sign out';
+
+  @override
+  String get signOutTitle => 'Sign out?';
+
+  @override
+  String get signOutBody =>
+      'Your recipes stay saved to your account. Sign back in to see them again.';
 
   @override
   String get profileDeleteAccount => 'Delete account';
@@ -249,10 +264,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recipeNowPublic => 'Recipe is now public';
 
   @override
-  String get deleteRecipeTitle => 'Delete recipe?';
-
-  @override
-  String get deleteRecipeBody => 'This cannot be undone.';
+  String recipeDeleted(String title) {
+    return 'Deleted “$title”';
+  }
 
   @override
   String get editRecipeTitle => 'Edit recipe';
@@ -470,6 +484,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commentsEmpty => 'No comments yet. Be the first!';
 
   @override
+  String get commentDeleteTitle => 'Delete comment?';
+
+  @override
+  String get commentDeleteBody => 'Your comment will be removed for everyone.';
+
+  @override
   String couldNotPost(String error) {
     return 'Could not post: $error';
   }
@@ -503,6 +523,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get unitsImperial => 'Imperial';
+
+  @override
+  String get scaleLabel => 'Scale recipe';
+
+  @override
+  String get scaleStepsNote =>
+      'Ingredient amounts are scaled; amounts mentioned in the steps aren\'t.';
 
   @override
   String get cookMode => 'Cook mode';

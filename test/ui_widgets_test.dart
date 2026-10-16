@@ -194,6 +194,45 @@ void main() {
       expect(find.text('Ingredients copied to the clipboard'), findsOneWidget);
     });
 
+    testWidgets('scaling multiplies ingredient amounts, not the steps',
+        (tester) async {
+      _useTallPhone(tester);
+      await _pump(tester, const RecipeView(recipe: _tart));
+      expect(find.text("Ingredient amounts are scaled; amounts mentioned in "
+          "the steps aren't."), findsNothing);
+
+      await tester.tap(find.text('2×'));
+      await tester.pump();
+      expect(find.text('2 cups flour'), findsOneWidget);
+      expect(find.text('200 g butter'), findsOneWidget);
+      expect(find.text('6 lemons'), findsOneWidget);
+      expect(find.text('Make the crust.'), findsOneWidget);
+      expect(find.text("Ingredient amounts are scaled; amounts mentioned in "
+          "the steps aren't."), findsOneWidget);
+
+      await tester.tap(find.text('½×'));
+      await tester.pump();
+      expect(find.text('1/2 cup flour'), findsOneWidget);
+      expect(find.text('1 1/2 lemons'), findsOneWidget);
+    });
+
+    testWidgets('highlights the next step once cooking is under way',
+        (tester) async {
+      _useTallPhone(tester);
+      await _pump(tester, const RecipeView(recipe: _tart));
+      Color? highlight(String step) => (tester
+              .widget<Ink>(find.ancestor(
+                  of: find.text(step), matching: find.byType(Ink)))
+              .decoration as BoxDecoration?)
+          ?.color;
+
+      expect(highlight('Make the crust.'), isNull);
+      await tester.tap(find.text('Make the crust.'));
+      await tester.pump();
+      expect(highlight('Make the crust.'), isNull);
+      expect(highlight('Fill and bake.'), AppColors.primarySoft);
+    });
+
     testWidgets('shows the source as its domain', (tester) async {
       _useTallPhone(tester);
       await _pump(tester, const RecipeView(recipe: _tart));

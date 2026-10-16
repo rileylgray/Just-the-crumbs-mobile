@@ -25,9 +25,11 @@ class SharedRecipeScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l10n.sharedRecipeTitle)),
       body: recipeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => EmptyState(
-          icon: Icons.error_outline,
-          title: l10n.errorWithMessage(e.toString()),
+        // Typically opened from a link, quite possibly before the network is
+        // up — so a failed fetch can be retried in place.
+        error: (e, _) => ErrorState(
+          error: e,
+          onRetry: () => ref.invalidate(sharedRecipeProvider(code)),
         ),
         data: (recipe) => recipe == null
             ? EmptyState.fromText(

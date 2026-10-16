@@ -57,15 +57,24 @@ class AppLocalizationsDe extends AppLocalizations {
   String get actionKeepEditing => 'Weiter bearbeiten';
 
   @override
+  String get actionRetry => 'Erneut versuchen';
+
+  @override
   String get tooltipShare => 'Teilen';
 
   @override
   String get tooltipMore => 'Mehr';
 
   @override
-  String errorWithMessage(String error) {
-    return 'Fehler: $error';
-  }
+  String get errorOffline =>
+      'Du bist offline. Überprüfe deine Verbindung und versuche es erneut.';
+
+  @override
+  String get errorPermission => 'Dazu hast du keine Berechtigung.';
+
+  @override
+  String get errorGeneric =>
+      'Etwas ist schiefgelaufen. Bitte versuche es erneut.';
 
   @override
   String get profileGuestName => 'Gast';
@@ -113,6 +122,13 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get profileSignOut => 'Abmelden';
+
+  @override
+  String get signOutTitle => 'Abmelden?';
+
+  @override
+  String get signOutBody =>
+      'Deine Rezepte bleiben in deinem Konto gespeichert. Melde dich wieder an, um sie zu sehen.';
 
   @override
   String get profileDeleteAccount => 'Konto löschen';
@@ -253,10 +269,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get recipeNowPublic => 'Das Rezept ist jetzt öffentlich';
 
   @override
-  String get deleteRecipeTitle => 'Rezept löschen?';
-
-  @override
-  String get deleteRecipeBody => 'Dies kann nicht rückgängig gemacht werden.';
+  String recipeDeleted(String title) {
+    return '„$title“ gelöscht';
+  }
 
   @override
   String get editRecipeTitle => 'Rezept bearbeiten';
@@ -474,6 +489,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get commentsEmpty => 'Noch keine Kommentare. Sei der Erste!';
 
   @override
+  String get commentDeleteTitle => 'Kommentar löschen?';
+
+  @override
+  String get commentDeleteBody => 'Dein Kommentar wird für alle entfernt.';
+
+  @override
   String couldNotPost(String error) {
     return 'Posten nicht möglich: $error';
   }
@@ -507,6 +528,13 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get unitsImperial => 'Imperial';
+
+  @override
+  String get scaleLabel => 'Mengen anpassen';
+
+  @override
+  String get scaleStepsNote =>
+      'Die Zutatenmengen werden angepasst, Mengenangaben in den Schritten nicht.';
 
   @override
   String get cookMode => 'Kochmodus';

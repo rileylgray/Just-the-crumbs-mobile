@@ -57,15 +57,24 @@ class AppLocalizationsFr extends AppLocalizations {
   String get actionKeepEditing => 'Continuer l\'édition';
 
   @override
+  String get actionRetry => 'Réessayer';
+
+  @override
   String get tooltipShare => 'Partager';
 
   @override
   String get tooltipMore => 'Plus';
 
   @override
-  String errorWithMessage(String error) {
-    return 'Erreur : $error';
-  }
+  String get errorOffline =>
+      'Vous êtes hors ligne. Vérifiez votre connexion et réessayez.';
+
+  @override
+  String get errorPermission =>
+      'Vous n\'avez pas l\'autorisation de faire cela.';
+
+  @override
+  String get errorGeneric => 'Une erreur s\'est produite. Veuillez réessayer.';
 
   @override
   String get profileGuestName => 'Invité';
@@ -113,6 +122,13 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get profileSignOut => 'Se déconnecter';
+
+  @override
+  String get signOutTitle => 'Se déconnecter ?';
+
+  @override
+  String get signOutBody =>
+      'Vos recettes restent enregistrées dans votre compte. Reconnectez-vous pour les retrouver.';
 
   @override
   String get profileDeleteAccount => 'Supprimer le compte';
@@ -254,10 +270,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get recipeNowPublic => 'La recette est désormais publique';
 
   @override
-  String get deleteRecipeTitle => 'Supprimer la recette ?';
-
-  @override
-  String get deleteRecipeBody => 'Cette action est irréversible.';
+  String recipeDeleted(String title) {
+    return '« $title » supprimée';
+  }
 
   @override
   String get editRecipeTitle => 'Modifier la recette';
@@ -476,6 +491,13 @@ class AppLocalizationsFr extends AppLocalizations {
       'Aucun commentaire pour l\'instant. Soyez le premier !';
 
   @override
+  String get commentDeleteTitle => 'Supprimer le commentaire ?';
+
+  @override
+  String get commentDeleteBody =>
+      'Votre commentaire sera supprimé pour tout le monde.';
+
+  @override
   String couldNotPost(String error) {
     return 'Impossible de publier : $error';
   }
@@ -509,6 +531,13 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get unitsImperial => 'Impérial';
+
+  @override
+  String get scaleLabel => 'Ajuster les quantités';
+
+  @override
+  String get scaleStepsNote =>
+      'Les quantités des ingrédients sont ajustées, mais pas celles indiquées dans les étapes.';
 
   @override
   String get cookMode => 'Mode cuisine';

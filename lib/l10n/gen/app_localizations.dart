@@ -202,6 +202,12 @@ abstract class AppLocalizations {
   /// **'Keep editing'**
   String get actionKeepEditing;
 
+  /// No description provided for @actionRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get actionRetry;
+
   /// No description provided for @tooltipShare.
   ///
   /// In en, this message translates to:
@@ -214,11 +220,23 @@ abstract class AppLocalizations {
   /// **'More'**
   String get tooltipMore;
 
-  /// No description provided for @errorWithMessage.
+  /// No description provided for @errorOffline.
   ///
   /// In en, this message translates to:
-  /// **'Error: {error}'**
-  String errorWithMessage(String error);
+  /// **'You\'re offline. Check your connection and try again.'**
+  String get errorOffline;
+
+  /// No description provided for @errorPermission.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to do that.'**
+  String get errorPermission;
+
+  /// No description provided for @errorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get errorGeneric;
 
   /// No description provided for @profileGuestName.
   ///
@@ -285,6 +303,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign out'**
   String get profileSignOut;
+
+  /// No description provided for @signOutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out?'**
+  String get signOutTitle;
+
+  /// No description provided for @signOutBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your recipes stay saved to your account. Sign back in to see them again.'**
+  String get signOutBody;
 
   /// No description provided for @profileDeleteAccount.
   ///
@@ -538,17 +568,11 @@ abstract class AppLocalizations {
   /// **'Recipe is now public'**
   String get recipeNowPublic;
 
-  /// No description provided for @deleteRecipeTitle.
+  /// No description provided for @recipeDeleted.
   ///
   /// In en, this message translates to:
-  /// **'Delete recipe?'**
-  String get deleteRecipeTitle;
-
-  /// No description provided for @deleteRecipeBody.
-  ///
-  /// In en, this message translates to:
-  /// **'This cannot be undone.'**
-  String get deleteRecipeBody;
+  /// **'Deleted “{title}”'**
+  String recipeDeleted(String title);
 
   /// No description provided for @editRecipeTitle.
   ///
@@ -958,6 +982,18 @@ abstract class AppLocalizations {
   /// **'No comments yet. Be the first!'**
   String get commentsEmpty;
 
+  /// No description provided for @commentDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete comment?'**
+  String get commentDeleteTitle;
+
+  /// No description provided for @commentDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your comment will be removed for everyone.'**
+  String get commentDeleteBody;
+
   /// No description provided for @couldNotPost.
   ///
   /// In en, this message translates to:
@@ -1017,6 +1053,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Imperial'**
   String get unitsImperial;
+
+  /// No description provided for @scaleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale recipe'**
+  String get scaleLabel;
+
+  /// No description provided for @scaleStepsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Ingredient amounts are scaled; amounts mentioned in the steps aren\'t.'**
+  String get scaleStepsNote;
 
   /// No description provided for @cookMode.
   ///

@@ -16,10 +16,12 @@ import 'category_chip.dart';
 /// steps). Shared by the owner and public detail screens.
 ///
 /// Ingredients and steps can be ticked off (with a strike-through) while
-/// following along. A "cook mode" toggle scales the text up and keeps the
-/// screen awake, and a units control converts measurements between metric and
-/// imperial on the fly. All checkbox/cook-mode state is local to the widget, so
-/// it resets as soon as the recipe screen is left.
+/// following along, and the next step to do is highlighted. A "cook mode"
+/// toggle scales the text up and keeps the screen awake, a units control
+/// converts measurements between metric and imperial on the fly, and a scale
+/// control halves, doubles or triples the ingredient amounts. All checkbox,
+/// cook-mode and scale state is local to the widget, so it resets as soon as
+/// the recipe screen is left.
 class RecipeView extends ConsumerStatefulWidget {
   const RecipeView({
     super.key,
@@ -47,6 +49,16 @@ class _RecipeViewState extends ConsumerState<RecipeView> {
 
   /// How much to scale up text when cook mode is on.
   static const double _cookModeScale = 1.3;
+
+  /// Batch size the ingredient amounts are shown for (1 = as written).
+  double _scale = 1;
+
+  static const _scales = <double>[0.5, 1, 2, 3];
+
+  /// An ingredient as displayed: scaled to the batch size, then converted to
+  /// the chosen units.
+  String _ingredientText(String item, MeasurementSystem units) =>
+      convertMeasurements(scaleQuantities(item, _scale), units);
 
   @override
   void dispose() {
@@ -79,6 +91,14 @@ class _RecipeViewState extends ConsumerState<RecipeView> {
         .map((id) => widget.categoriesById[id])
         .whereType<Category>()
         .toList();
+    // Once cooking is under way — cook mode on, or a step ticked off — the
+    // first step not yet done is highlighted, so it's easy to find your place
+    // again after looking away.
+    final nextStep = (_cookMode || _checkedSteps.isNotEmpty)
+        ? List.generate(recipe.steps.length, (i) => i)
+            .where((i) => !_checkedSteps.contains(i))
+            .firstOrNull
+        : null;
 
     return ListView(
       padding: EdgeInsets.fromLTRB(
@@ -167,7 +187,11 @@ class _RecipeViewState extends ConsumerState<RecipeView> {
           uncheckAllTooltip: l10n.uncheckAll,
           children: [
             for (var i = 0; i < recipe.steps.length; i++)
-              _stepRow(i, convertMeasurements(recipe.steps[i], units)),
+              _stepRow(
+                i,
+                convertMeasurements(recipe.steps[i], units),
+                current: i == nextStep,
+              ),
           ],
         ),
         if (recipe.sourceUrl.isNotEmpty) ...[
@@ -202,16 +226,16 @@ class _RecipeViewState extends ConsumerState<RecipeView> {
         ));
       }
       for (final item in group.items) {
-        rows.add(_ingredientRow(index, convertMeasurements(item, units)));
+        rows.add(_ingredientRow(index, _ingredientText(item, units)));
         index++;
       }
     }
     return rows;
   }
 
-  /// Puts the ingredient list on the clipboard — in the units currently
-  /// shown, with part headings for multi-part recipes — ready to paste into a
-  /// shopping list.
+  /// Puts the ingredient list on the clipboard — scaled and in the units
+  /// currently shown, with part headings for multi-part recipes — ready to
+  /// paste into a shopping list.
   Future<void> _copyIngredients(
     AppLocalizations l10n,
     MeasurementSystem units,
@@ -224,7 +248,7 @@ class _RecipeViewState extends ConsumerState<RecipeView> {
         buffer.writeln(group.title);
       }
       for (final item in group.items) {
-        buffer.writeln('• ${convertMeasurements(item, units)}');
+        buffer.writeln('• ${_ingredientText(item, units)}');
       }
     }
     final messenger = ScaffoldMessenger.of(context);
@@ -305,15 +329,7 @@ class _RecipeViewState extends ConsumerState<RecipeView> {
                 SegmentedButton<MeasurementSystem>(
                   showSelectedIcon: false,
                   expandedInsets: EdgeInsets.zero,
-                  style: ButtonStyle(
-                    visualDensity: VisualDensity.compact,
-                    textStyle: WidgetStatePropertyAll(
-                      Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontSize: _scaled(13),
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
+                  style: _segmentStyle(context),
                   segments: [
                     ButtonSegment(
                       value: MeasurementSystem.asWritten,
@@ -335,10 +351,73 @@ class _RecipeViewState extends ConsumerState<RecipeView> {
               ],
             ),
           ),
+          const Divider(indent: 16, endIndent: 16),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.scale_outlined,
+                        size: 20, color: AppColors.textMuted),
+                    const SizedBox(width: 12),
+                    Text(
+                      l10n.scaleLabel,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SegmentedButton<double>(
+                  showSelectedIcon: false,
+                  expandedInsets: EdgeInsets.zero,
+                  style: _segmentStyle(context),
+                  segments: [
+                    for (final scale in _scales)
+                      ButtonSegment(
+                        value: scale,
+                        label: Text(scale == 0.5 ? '½×' : '${scale.round()}×'),
+                      ),
+                  ],
+                  selected: {_scale},
+                  onSelectionChanged: (s) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _scale = s.first);
+                  },
+                ),
+                // Steps are prose ("add half the flour"), so they're left as
+                // written — say so rather than let a doubled list and an
+                // unchanged step disagree silently.
+                if (_scale != 1) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.scaleStepsNote,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textMuted),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+
+  /// Compact segments whose text follows cook mode's size.
+  ButtonStyle _segmentStyle(BuildContext context) => ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        textStyle: WidgetStatePropertyAll(
+          Theme.of(context).textTheme.labelLarge?.copyWith(
+                fontSize: _scaled(13),
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      );
 
   /// The recipe's source as a tappable domain ("seriouseats.com") rather than
   /// a full, often very long, URL.
@@ -415,52 +494,65 @@ class _RecipeViewState extends ConsumerState<RecipeView> {
     );
   }
 
-  Widget _stepRow(int index, String text) {
+  Widget _stepRow(int index, String text, {required bool current}) {
     final checked = _checkedSteps.contains(index);
     final badgeSize = _scaled(28);
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: () => _toggle(_checkedSteps, index),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: badgeSize,
-              height: badgeSize,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: checked ? AppColors.primary : AppColors.primarySoft,
-                shape: BoxShape.circle,
+    // Ink rather than a colored box, so the tap ripple still shows on top.
+    return Ink(
+      decoration: BoxDecoration(
+        color: current ? AppColors.primarySoft : null,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => _toggle(_checkedSteps, index),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: badgeSize,
+                height: badgeSize,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  // White on the highlighted row, where the usual soft fill
+                  // would vanish into the highlight.
+                  color: checked
+                      ? AppColors.primary
+                      : current
+                          ? AppColors.surface
+                          : AppColors.primarySoft,
+                  shape: BoxShape.circle,
+                ),
+                child: checked
+                    ? Icon(Icons.check, color: Colors.white, size: _scaled(16))
+                    : Text('${index + 1}',
+                        style: TextStyle(
+                            color: AppColors.primaryDeep,
+                            fontWeight: FontWeight.w800,
+                            fontSize: _scaled(13))),
               ),
-              child: checked
-                  ? Icon(Icons.check, color: Colors.white, size: _scaled(16))
-                  : Text('${index + 1}',
-                      style: TextStyle(
-                          color: AppColors.primaryDeep,
-                          fontWeight: FontWeight.w800,
-                          fontSize: _scaled(13))),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Text(
-                  text,
-                  style: TextStyle(
-                    fontSize: _scaled(16),
-                    height: 1.45,
-                    color: checked ? AppColors.textMuted : AppColors.text,
-                    decoration: checked
-                        ? TextDecoration.lineThrough
-                        : TextDecoration.none,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(
+                    text,
+                    style: TextStyle(
+                      fontSize: _scaled(16),
+                      height: 1.45,
+                      color: checked ? AppColors.textMuted : AppColors.text,
+                      decoration: checked
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -88,9 +88,9 @@ class _RecipesListScreenState extends ConsumerState<RecipesListScreen> {
           Expanded(
             child: recipesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => EmptyState(
-                icon: Icons.error_outline,
-                title: l10n.errorWithMessage(e.toString()),
+              error: (e, _) => ErrorState(
+                error: e,
+                onRetry: () => ref.invalidate(userRecipesProvider),
               ),
               data: (recipes) {
                 final filtered = _applyFilters(recipes);

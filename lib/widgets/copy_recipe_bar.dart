@@ -6,6 +6,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../models/recipe.dart';
 import '../providers/providers.dart';
 import '../theme/app_theme.dart';
+import 'feedback.dart';
 
 /// Bottom bar with a "Copy to my recipes" button, shared by the public recipe
 /// and shared-code screens.
@@ -48,7 +49,7 @@ class _CopyRecipeBarState extends ConsumerState<CopyRecipeBar> {
       messenger.showSnackBar(SnackBar(content: Text(l10n.copiedToRecipes)));
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text(l10n.errorWithMessage(e.toString()))),
+        SnackBar(content: Text(friendlyError(l10n, e))),
       );
     } finally {
       if (mounted) setState(() => _busy = false);

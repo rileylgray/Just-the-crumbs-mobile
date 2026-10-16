@@ -57,15 +57,23 @@ class AppLocalizationsEs extends AppLocalizations {
   String get actionKeepEditing => 'Seguir editando';
 
   @override
+  String get actionRetry => 'Reintentar';
+
+  @override
   String get tooltipShare => 'Compartir';
 
   @override
   String get tooltipMore => 'Más';
 
   @override
-  String errorWithMessage(String error) {
-    return 'Error: $error';
-  }
+  String get errorOffline =>
+      'No tienes conexión. Compruébala e inténtalo de nuevo.';
+
+  @override
+  String get errorPermission => 'No tienes permiso para hacer eso.';
+
+  @override
+  String get errorGeneric => 'Algo salió mal. Inténtalo de nuevo.';
 
   @override
   String get profileGuestName => 'Invitado';
@@ -113,6 +121,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get profileSignOut => 'Cerrar sesión';
+
+  @override
+  String get signOutTitle => '¿Cerrar sesión?';
+
+  @override
+  String get signOutBody =>
+      'Tus recetas siguen guardadas en tu cuenta. Vuelve a iniciar sesión para verlas.';
 
   @override
   String get profileDeleteAccount => 'Eliminar cuenta';
@@ -252,10 +267,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get recipeNowPublic => 'La receta ahora es pública';
 
   @override
-  String get deleteRecipeTitle => '¿Eliminar receta?';
-
-  @override
-  String get deleteRecipeBody => 'Esta acción no se puede deshacer.';
+  String recipeDeleted(String title) {
+    return 'Se eliminó «$title»';
+  }
 
   @override
   String get editRecipeTitle => 'Editar receta';
@@ -473,6 +487,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get commentsEmpty => 'Aún no hay comentarios. ¡Sé el primero!';
 
   @override
+  String get commentDeleteTitle => '¿Eliminar comentario?';
+
+  @override
+  String get commentDeleteBody => 'Tu comentario se eliminará para todos.';
+
+  @override
   String couldNotPost(String error) {
     return 'No se pudo publicar: $error';
   }
@@ -506,6 +526,13 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get unitsImperial => 'Imperial';
+
+  @override
+  String get scaleLabel => 'Ajustar cantidades';
+
+  @override
+  String get scaleStepsNote =>
+      'Se ajustan las cantidades de los ingredientes, pero no las que aparecen en los pasos.';
 
   @override
   String get cookMode => 'Modo cocina';

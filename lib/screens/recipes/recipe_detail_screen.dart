@@ -7,6 +7,7 @@ import '../../models/recipe.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/feedback.dart';
 import '../../widgets/recipe_view.dart';
 
 /// View a recipe the current user owns, with edit/delete/share/publish actions.
@@ -39,18 +40,22 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
     final categories = ref.watch(userCategoriesProvider).value ?? const [];
     final categoriesById = {for (final c in categories) c.id: c};
     final uid = ref.watch(currentUidProvider);
-    // Offline the recipe is still readable from cache, but sharing, editing,
-    // deleting and publishing all reach the network — so hide those actions.
+    // Offline the recipe is still readable from cache, and edits save locally
+    // and sync later — but sharing, deleting and publishing reach the network,
+    // so those actions are hidden.
     final online = ref.watch(isOnlineProvider).value ?? true;
 
     return recipeAsync.when(
-      loading: () => const Scaffold(
-          body: Center(child: CircularProgressIndicator())),
+      // An app bar even while loading, so there's always a way back.
+      loading: () => Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
       error: (e, _) => Scaffold(
         appBar: AppBar(),
-        body: EmptyState(
-          icon: Icons.error_outline,
-          title: l10n.errorWithMessage(e.toString()),
+        body: ErrorState(
+          error: e,
+          onRetry: () => ref.invalidate(recipeProvider(recipeId)),
         ),
       ),
       data: (recipe) {
@@ -68,18 +73,25 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
           appBar: AppBar(
             title: const Text(''),
             actions: [
+              // Editing is the thing owners do most, so it isn't tucked away
+              // in the overflow menu.
+              if (isOwner)
+                IconButton(
+                  tooltip: l10n.menuEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () => context.push('/recipes/${recipe.id}/edit'),
+                ),
               if (online)
                 IconButton(
                   tooltip: l10n.tooltipShare,
                   icon: const Icon(Icons.share_outlined),
-                  onPressed: () => _share(context, ref, recipe),
+                  onPressed: () => _share(recipe),
                 ),
               if (isOwner && online)
                 PopupMenuButton<String>(
                   tooltip: l10n.tooltipMore,
-                  onSelected: (v) => _onMenu(context, ref, recipe, v),
+                  onSelected: (v) => _onMenu(recipe, v),
                   itemBuilder: (context) => [
-                    _menuItem('edit', Icons.edit_outlined, l10n.menuEdit),
                     recipe.isPublic
                         ? _menuItem(
                             'public', Icons.lock_outline, l10n.menuMakePrivate)
@@ -113,57 +125,72 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> {
     );
   }
 
-  Future<void> _share(BuildContext context, WidgetRef ref, Recipe recipe) async {
+  Future<void> _share(Recipe recipe) async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final code = await ref.read(recipeRepositoryProvider).ensureShareCode(recipe);
+      final code =
+          await ref.read(recipeRepositoryProvider).ensureShareCode(recipe);
       await ref.read(shareServiceProvider).shareRecipe(recipe, code);
     } catch (e) {
       messenger.showSnackBar(
-          SnackBar(content: Text(l10n.couldNotShare(e.toString()))));
+          SnackBar(content: Text(l10n.couldNotShare(friendlyError(l10n, e)))));
     }
   }
 
-  Future<void> _onMenu(
-      BuildContext context, WidgetRef ref, Recipe recipe, String value) async {
-    final l10n = AppLocalizations.of(context);
-    final repo = ref.read(recipeRepositoryProvider);
+  Future<void> _onMenu(Recipe recipe, String value) async {
     switch (value) {
-      case 'edit':
-        context.push('/recipes/${recipe.id}/edit');
       case 'public':
-        await repo.setPublic(recipe.id, !recipe.isPublic);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(recipe.isPublic
-                ? l10n.recipeNowPrivate
-                : l10n.recipeNowPublic),
-          ));
-        }
+        await _togglePublic(recipe);
       case 'delete':
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(l10n.deleteRecipeTitle),
-            content: Text(l10n.deleteRecipeBody),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text(l10n.actionCancel),
-              ),
-              TextButton(
-                style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: Text(l10n.actionDelete),
-              ),
-            ],
-          ),
-        );
-        if (confirm == true) {
-          await repo.deleteRecipe(recipe.id);
-          if (context.mounted) context.pop();
-        }
+        await _delete(recipe);
+    }
+  }
+
+  Future<void> _togglePublic(Recipe recipe) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(recipeRepositoryProvider)
+          .setPublic(recipe.id, !recipe.isPublic);
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+            recipe.isPublic ? l10n.recipeNowPrivate : l10n.recipeNowPublic),
+      ));
+    } catch (e) {
+      messenger
+          .showSnackBar(SnackBar(content: Text(friendlyError(l10n, e))));
+    }
+  }
+
+  /// Deletes straight away and offers Undo, rather than asking first: the
+  /// recipe can be put back exactly as it was (see
+  /// [RecipeRepository.restoreRecipe]), so a confirmation would only slow
+  /// down every deliberate delete.
+  Future<void> _delete(Recipe recipe) async {
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = ref.read(recipeRepositoryProvider);
+    // Leave first, so this screen doesn't flash "Recipe not found" as the
+    // deletion lands.
+    context.canPop() ? context.pop() : context.go('/recipes');
+    try {
+      await repo.deleteRecipe(recipe.id);
+      showUndoSnackBar(
+        messenger,
+        message: l10n.recipeDeleted(recipe.title),
+        onUndo: () async {
+          try {
+            await repo.restoreRecipe(recipe);
+          } catch (e) {
+            messenger
+                .showSnackBar(SnackBar(content: Text(friendlyError(l10n, e))));
+          }
+        },
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(friendlyError(l10n, e))));
     }
   }
 }

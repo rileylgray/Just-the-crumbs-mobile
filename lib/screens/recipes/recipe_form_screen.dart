@@ -9,8 +9,11 @@ import '../../l10n/gen/app_localizations.dart';
 import '../../models/recipe.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/providers.dart';
+import '../../services/import/ingredient_grouping.dart';
 import '../../services/import/recipe_import_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/feedback.dart';
 import '../../widgets/offline_banner.dart';
 
 /// Create or edit a recipe. Also used as the "review & save" screen after an
@@ -66,7 +69,9 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
   late String _language = ref.read(localeControllerProvider).languageCode;
 
   bool _loading = false;
-  bool _loadedExisting = false;
+
+  /// Editing a recipe that no longer exists (deleted on another device).
+  bool _missing = false;
 
   /// [_fingerprint] of the form as it opened — blank for a new recipe, or the
   /// recipe being edited once it loads (null until then). Leaving with
@@ -87,7 +92,11 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
     super.initState();
     // Taken before any imported content is filled in, so an imported recipe
     // counts as unsaved work until it's saved.
-    if (!widget.isEditing) _pristine = _fingerprint();
+    if (widget.isEditing) {
+      _loadExisting();
+    } else {
+      _pristine = _fingerprint();
+    }
     final initial = widget.initial;
     if (initial != null) {
       _title.text = initial.title;
@@ -136,24 +145,38 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
           : steps.map((e) => TextEditingController(text: e)));
   }
 
+  /// Fills the form with the recipe being edited. Until it arrives the screen
+  /// shows a spinner, not an empty form someone could start typing into only
+  /// to have it overwritten.
+  ///
+  /// Read through the live recipe stream rather than a one-off fetch: the
+  /// detail screen underneath already holds it, so this resolves at once from
+  /// cache — even offline, where a one-off fetch can sit waiting on the server.
   Future<void> _loadExisting() async {
-    if (_loadedExisting || !widget.isEditing) return;
-    _loadedExisting = true;
-    final recipe = await ref
-        .read(recipeRepositoryProvider)
-        .getRecipe(widget.recipeId!);
-    if (recipe == null || !mounted) return;
+    final Recipe? recipe;
+    try {
+      recipe = await ref.read(recipeProvider(widget.recipeId!).future);
+    } catch (_) {
+      if (mounted) setState(() => _missing = true);
+      return;
+    }
+    if (!mounted) return;
+    if (recipe == null) {
+      setState(() => _missing = true);
+      return;
+    }
+    final loaded = recipe;
     setState(() {
-      _title.text = recipe.title;
-      _description.text = recipe.description;
-      _setGroups(recipe.ingredientGroups);
-      _setSteps(recipe.steps);
-      _sourceUrl.text = recipe.sourceUrl;
-      _isPublic = recipe.isPublic;
-      _language = recipe.language;
+      _title.text = loaded.title;
+      _description.text = loaded.description;
+      _setGroups(loaded.ingredientGroups);
+      _setSteps(loaded.steps);
+      _sourceUrl.text = loaded.sourceUrl;
+      _isPublic = loaded.isPublic;
+      _language = loaded.language;
       _categoryIds
         ..clear()
-        ..addAll(recipe.categoryIds);
+        ..addAll(loaded.categoryIds);
       _pristine = _fingerprint();
     });
   }
@@ -303,7 +326,7 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
         _toast(widget.isEditing ? l10n.recipeUpdated : l10n.recipeCreated);
       }
     } catch (e) {
-      if (mounted) _toast(l10n.errorWithMessage(e.toString()));
+      if (mounted) _toast(friendlyError(l10n, e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -330,6 +353,30 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
         g.items.add(controller);
         _focusWhenBuilt(controller);
       });
+
+  /// Breaks a row holding several lines into one row per line. A list pasted
+  /// into one row becomes a row per ingredient (markers like "•" dropped), and
+  /// a line break typed on a hardware keyboard starts the next ingredient.
+  void _splitIngredient(_GroupEditor g, int i) {
+    final raw = g.items[i].text;
+    final lines = ingredientLines(raw);
+    setState(() {
+      final first = lines.isEmpty ? '' : lines.first;
+      g.items[i].value = TextEditingValue(
+        text: first,
+        selection: TextSelection.collapsed(offset: first.length),
+      );
+      final added = [
+        for (final line in lines.skip(1)) TextEditingController(text: line),
+      ];
+      // Ending on a line break means "next ingredient": add a blank row for it.
+      if (RegExp(r'[\r\n]\s*$').hasMatch(raw)) {
+        added.add(TextEditingController());
+      }
+      g.items.insertAll(i + 1, added);
+      if (added.isNotEmpty) _focusWhenBuilt(added.last);
+    });
+  }
 
   void _removeIngredient(_GroupEditor g, int i) => setState(() {
         final removed = g.items.removeAt(i);
@@ -360,10 +407,19 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Lazily populate fields for edit mode.
-    if (widget.isEditing && !_loadedExisting) _loadExisting();
-
     final l10n = AppLocalizations.of(context);
+    if (widget.isEditing && _pristine == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(l10n.editRecipeTitle)),
+        body: _missing
+            ? EmptyState(
+                icon: Icons.no_food_outlined,
+                title: l10n.recipeNotFound,
+              )
+            : const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final online = ref.watch(isOnlineProvider).value ?? true;
     final categories = ref.watch(userCategoriesProvider).value ?? const [];
     // Offer every content language (sorted by name), plus the recipe's own
@@ -681,11 +737,24 @@ class _RecipeFormScreenState extends ConsumerState<RecipeFormScreen> {
               controller: g.items[i],
               focusNode: _focusNodeFor(g.items[i]),
               textCapitalization: TextCapitalization.sentences,
+              // Wraps a long ingredient instead of scrolling it out of view.
+              // Being multi-line also keeps pasted line breaks (a single-line
+              // field silently deletes them, gluing a pasted list into one
+              // run-on row) so [_splitIngredient] can turn them into rows; the
+              // plain text keyboard keeps "next" on the action key.
+              minLines: 1,
+              maxLines: null,
+              keyboardType: TextInputType.text,
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
                 isDense: true,
                 hintText: l10n.ingredientHint,
               ),
+              onChanged: (text) {
+                if (text.contains('\n') || text.contains('\r')) {
+                  _splitIngredient(g, i);
+                }
+              },
               onFieldSubmitted: (_) {
                 if (i == g.items.length - 1) _addIngredient(g);
               },

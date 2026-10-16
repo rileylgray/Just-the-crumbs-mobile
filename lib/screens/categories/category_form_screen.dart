@@ -7,6 +7,7 @@ import '../../models/category.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/category_chip.dart';
+import '../../widgets/feedback.dart';
 
 class CategoryFormScreen extends ConsumerStatefulWidget {
   const CategoryFormScreen({super.key, this.categoryId});
@@ -61,7 +62,7 @@ class _CategoryFormScreenState extends ConsumerState<CategoryFormScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.errorWithMessage(e.toString()))));
+            SnackBar(content: Text(friendlyError(l10n, e))));
       }
     } finally {
       if (mounted) setState(() => _loading = false);

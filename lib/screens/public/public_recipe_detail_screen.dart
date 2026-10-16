@@ -11,6 +11,7 @@ import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/copy_recipe_bar.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/feedback.dart';
 import '../../widgets/recipe_moderation.dart';
 import '../../widgets/recipe_view.dart';
 
@@ -31,9 +32,9 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(
         appBar: AppBar(),
-        body: EmptyState(
-          icon: Icons.error_outline,
-          title: l10n.errorWithMessage(e.toString()),
+        body: ErrorState(
+          error: e,
+          onRetry: () => ref.invalidate(recipeProvider(recipeId)),
         ),
       ),
       data: (recipe) {
@@ -105,7 +106,7 @@ class PublicRecipeDetailScreen extends ConsumerWidget {
       await ref.read(shareServiceProvider).shareRecipe(recipe, code);
     } catch (e) {
       messenger.showSnackBar(
-          SnackBar(content: Text(l10n.couldNotShare(e.toString()))));
+          SnackBar(content: Text(l10n.couldNotShare(friendlyError(l10n, e)))));
     }
   }
 
@@ -139,7 +140,7 @@ class _LikeButton extends ConsumerWidget {
         } catch (e) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(l10n.errorWithMessage(e.toString()))));
+                SnackBar(content: Text(friendlyError(l10n, e))));
           }
         }
       },
@@ -214,10 +215,43 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.couldNotPost(e.toString()))));
+            SnackBar(content: Text(l10n.couldNotPost(friendlyError(l10n, e)))));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  /// Asks first: a comment can't be brought back once deleted, and the delete
+  /// button sits right beside the text, easy to hit while scrolling.
+  Future<void> _deleteComment(Comment comment) async {
+    final l10n = AppLocalizations.of(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.commentDeleteTitle),
+        content: Text(l10n.commentDeleteBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.actionCancel),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.actionDelete),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(commentRepositoryProvider)
+          .deleteComment(widget.recipeId, comment.id);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(friendlyError(l10n, e))));
     }
   }
 
@@ -280,7 +314,7 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
         commentsAsync.when(
           loading: () =>
               const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())),
-          error: (e, _) => Text(l10n.errorWithMessage(e.toString())),
+          error: (e, _) => Text(friendlyError(l10n, e)),
           data: (comments) {
             if (comments.isEmpty) {
               return Padding(
@@ -304,9 +338,7 @@ class _CommentsSectionState extends ConsumerState<_CommentsSection> {
                   _CommentTile(
                     comment: c,
                     canDelete: c.userId != null && c.userId == uid,
-                    onDelete: () => ref
-                        .read(commentRepositoryProvider)
-                        .deleteComment(widget.recipeId, c.id),
+                    onDelete: () => _deleteComment(c),
                   ),
               ],
             );
@@ -331,7 +363,12 @@ class _CommentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = comment.createdAt;
-    final dateStr = date == null ? '' : DateFormat.yMMMd().add_jm().format(date);
+    // In the app's language, not the device default ("12 mars 2026" in French).
+    final dateStr = date == null
+        ? ''
+        : DateFormat.yMMMd(AppLocalizations.of(context).localeName)
+            .add_jm()
+            .format(date);
     // Anonymous comments (and legacy ones with no author) get a person icon
     // rather than the "A" of "Anonymous".
     final hidden = comment.anonymous || comment.userId == null;

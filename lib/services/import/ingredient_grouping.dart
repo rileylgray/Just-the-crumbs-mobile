@@ -109,3 +109,17 @@ final _forHeading = RegExp(
 
 /// A short colon-terminated label: `Crust:`, `Marinade:`.
 final _colonHeading = RegExp(r'^([^:]{2,40}?)\s*:$');
+
+/// Splits text pasted into an ingredient row into one ingredient per line, so
+/// a list copied from a website or a note becomes separate rows instead of one
+/// run-on line. List markers ("•", "-", "▢" checkboxes) and blank lines are
+/// dropped; quantities are left alone ("1 cup", never "cup").
+List<String> ingredientLines(String text) => [
+      for (final line in text.split(_lineBreak))
+        if (line.replaceFirst(_listMarker, '').trim() case final item
+            when item.isNotEmpty)
+          item,
+    ];
+
+final _lineBreak = RegExp(r'\r\n|\r|\n');
+final _listMarker = RegExp(r'^\s*(?:[▢☐☑✓✔▫▪•‣◦⁃∙●○·▸▹▶▷►◆◇\-–*+]+|\[\s?\])\s*');

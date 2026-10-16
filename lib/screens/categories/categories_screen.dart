@@ -25,9 +25,9 @@ class CategoriesScreen extends ConsumerWidget {
       ),
       body: categoriesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => EmptyState(
-          icon: Icons.error_outline,
-          title: l10n.errorWithMessage(e.toString()),
+        error: (e, _) => ErrorState(
+          error: e,
+          onRetry: () => ref.invalidate(userCategoriesProvider),
         ),
         data: (categories) {
           if (categories.isEmpty) {

@@ -56,6 +56,8 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
       ..sort();
     final effectiveLanguage =
         _effectiveLanguage(languagePref, availableLanguages);
+    // Surprise from what's actually shown (respects the filters).
+    final shown = _applyFilters(allRecipes, effectiveLanguage);
 
     return Scaffold(
       appBar: AppBar(
@@ -64,14 +66,15 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
           IconButton(
             tooltip: l10n.surpriseMe,
             icon: const Icon(Icons.casino_outlined),
-            onPressed: () {
-              // Surprise from what's actually shown (respects the filters).
-              final shown = _applyFilters(allRecipes, effectiveLanguage);
-              if (shown.isEmpty) return;
-              HapticFeedback.lightImpact();
-              final r = shown[Random().nextInt(shown.length)];
-              context.push('/public/${r.id}');
-            },
+            // Disabled rather than silently doing nothing when the filters
+            // leave nothing to pick from.
+            onPressed: shown.isEmpty
+                ? null
+                : () {
+                    HapticFeedback.lightImpact();
+                    final r = shown[Random().nextInt(shown.length)];
+                    context.push('/public/${r.id}');
+                  },
           ),
         ],
       ),
@@ -92,9 +95,9 @@ class _PublicFeedScreenState extends ConsumerState<PublicFeedScreen> {
           Expanded(
             child: recipesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => EmptyState(
-                icon: Icons.error_outline,
-                title: l10n.errorWithMessage(e.toString()),
+              error: (e, _) => ErrorState(
+                error: e,
+                onRetry: () => ref.invalidate(publicRecipesProvider),
               ),
               data: (recipes) {
                 final filtered = _applyFilters(recipes, effectiveLanguage);

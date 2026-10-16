@@ -29,22 +29,147 @@ String convertMeasurements(String text, MeasurementSystem target) {
   });
 }
 
+/// Multiplies the quantities in one ingredient line by [factor], for cooking a
+/// half, double or triple batch.
+///
+/// Like [convertMeasurements] this only touches what it can read:
+///
+/// * A line led by a measurement ("1 cup (120 g) flour") has every
+///   measurement in it scaled, so a weight given alongside stays in step.
+/// * A line led by a plain count ("2 eggs", "1 (14 oz) can tomatoes") has only
+///   that count scaled — the can size describes the can, not how many.
+/// * Otherwise any measurement in the line is scaled ("Flour, 2 cups").
+///
+/// Sizes and temperatures are never scaled ("9-inch pan", "2% milk", "65°F").
+/// Imperial amounts come out as kitchen fractions, metric ones as decimals.
+String scaleQuantities(String text, double factor) {
+  if (factor == 1 || text.trim().isEmpty) return text;
+  final start = text.length - text.trimLeft().length;
+  if (_scalableMeasurement.matchAsPrefix(text, start) == null) {
+    final count = _leadingCount.firstMatch(text);
+    if (count != null) {
+      final a = _parseAmount(count.group(2)!);
+      final sep = count.group(3);
+      final b = sep == null ? null : _parseAmount(count.group(4)!);
+      if (a == null || (sep != null && b == null)) return text;
+      final style = _NumberStyle.of(count.group(0)!);
+      return '${count.group(1)}${style.format(a * factor)}'
+          '${sep == null ? '' : '$sep${style.format(b! * factor)}'}'
+          '${text.substring(count.end)}';
+    }
+  }
+  return text.replaceAllMapped(_scalableMeasurement, (m) {
+    // Groups: 1 = first amount, 2 = separator + second amount, 3 = second
+    // amount, 4 = space before the unit, 5 = unit.
+    final unit = _unitFor(m.group(5)!);
+    if (unit == null || unit.kind == _Kind.temp) return m.group(0)!;
+    final a = _parseAmount(m.group(1)!);
+    final range = m.group(2);
+    final b = range == null ? null : _parseAmount(m.group(3)!);
+    if (a == null || (range != null && b == null)) return m.group(0)!;
+    final style = _NumberStyle.of(m.group(0)!, metric: unit.isMetric);
+    final sep = range?.substring(0, range.length - m.group(3)!.length);
+    return '${style.format(a * factor)}'
+        '${sep == null ? '' : '$sep${style.format(b! * factor)}'}'
+        '${m.group(4)}${_agreeUnit(m.group(5)!, (b ?? a) * factor)}';
+  });
+}
+
 // ---- Matching --------------------------------------------------------------
 
-// A single amount: mixed number (1 1/2), fraction (1/2), decimal (1.5),
-// integer (2) or a unicode vulgar fraction (½). Kept as its own fragment so the
-// range pattern can reuse it.
+const _vulgarChars = '½⅓⅔¼¾⅛⅜⅝⅞⅕⅖⅗⅘⅙⅚';
+
+// A single amount, kept as its own fragment so the range pattern can reuse it.
+// Mixed numbers come in every shape recipes write them — "3 1/2", "3-1/2",
+// "3 and 1/2", "3½", "3 ½" — and must match whole: matching only the fraction
+// converts it and strands the whole number in front ("3 ½ cups" → "3 120 ml").
+// Recipe sites often use the fraction slash (⁄, U+2044) instead of "/".
+// Then plain fractions (1/2), decimals (1.5), integers (2) and a lone vulgar
+// fraction (½).
 const _amount =
-    r'(?:\d+\s+\d+\s*/\s*\d+|\d+\s*/\s*\d+|\d+(?:[.,]\d+)?|[½⅓⅔¼¾⅛⅜⅝⅞⅕⅖⅗⅘⅙⅚])';
+    r'(?:\d+(?:\s+and\s+|\s*-\s*|\s+)\d+\s*[/⁄]\s*\d+'
+    '|\\d+\\s*[$_vulgarChars]'
+    r'|\d+\s*[/⁄]\s*\d+'
+    r'|\d+(?:[.,]\d+)?'
+    '|[$_vulgarChars])';
 
 // amount, optional range (`-`, en/em dash or "to") + second amount, then a unit.
+const _units =
+    r'cups?|tablespoons?|tbsps?|tbs|teaspoons?|tsps?|fluid\s+ounces?|fl\.?\s*oz|ounces?|oz|pounds?|lbs?|millis?litres?|milliliters?|millilitres?|ml|litres?|liters?|l|grams?|g|kilograms?|kilos?|kg|°\s*[cf]|degrees?\s+[cf]|celsius|centigrade|fahrenheit';
+
 final _measurement = RegExp(
   '($_amount)'
   '(?:\\s*(-|–|—|\\s+to\\s+)\\s*($_amount))?'
   r'\s*'
-  r'(cups?|tablespoons?|tbsps?|tbs|teaspoons?|tsps?|fluid\s+ounces?|fl\.?\s*oz|ounces?|oz|pounds?|lbs?|millis?litres?|milliliters?|millilitres?|ml|litres?|liters?|l|grams?|g|kilograms?|kilos?|kg|°\s*[cf]|degrees?\s+[cf]|celsius|centigrade|fahrenheit)\b',
+  '($_units)\\b',
   caseSensitive: false,
 );
+
+// [_measurement] with every piece captured, so a scaled amount can be put back
+// with the line's own spacing and separators.
+final _scalableMeasurement = RegExp(
+  '($_amount)'
+  '(\\s*(?:-|–|—|\\s+to\\s+)\\s*($_amount))?'
+  r'(\s*)'
+  '($_units)\\b',
+  caseSensitive: false,
+);
+
+// A count at the start of a line ("2 eggs", "2-3 cloves"). The lookahead keeps
+// it from stopping partway through a number ("10" as "1") or a range, and
+// skips sizes and percentages ("9-inch pan", "2% milk") that aren't amounts.
+final _leadingCount = RegExp(
+  '^(\\s*)($_amount)'
+  '(?:(\\s*(?:-|–|—|\\s+to\\s+)\\s*)($_amount))?'
+  '(?!\\d|[.,]\\d|[/⁄$_vulgarChars]|\\s*[-–—]\\s*\\d|\\s+to\\s+\\d'
+  r'''|\s*-?\s*(?:inch|in\b|"|”|cm\b|mm\b|%|°))''',
+  caseSensitive: false,
+);
+
+/// [unit] made to agree with a new [amount] when it is spelled out: "1 cup"
+/// doubles to "2 cups", "1 1/2 cups" halves to "3/4 cup". Abbreviations
+/// ("tbsp", "lb", "g") read the same either way and are left alone.
+String _agreeUnit(String unit, double amount) {
+  final m = _wordUnit.firstMatch(unit);
+  if (m == null) return unit;
+  if (amount <= 1) return m.group(1)!;
+  return '${m.group(1)}${unit == unit.toUpperCase() ? 'S' : 's'}';
+}
+
+final _wordUnit = RegExp(
+  r'^(cup|tablespoon|teaspoon|pound|ounce|gram|kilogram|kilo|liter|litre'
+  r'|milliliter|millilitre)s?$',
+  caseSensitive: false,
+);
+
+/// How to write a scaled amount, following how the original was written.
+class _NumberStyle {
+  const _NumberStyle(this.decimal, this.comma);
+
+  /// Decimals for metric amounts and ones written as decimals ("1.5 lb");
+  /// kitchen fractions otherwise.
+  factory _NumberStyle.of(String original, {bool metric = false}) {
+    final decimal =
+        metric || (_decimalMark.hasMatch(original) && !original.contains('/'));
+    return _NumberStyle(decimal, original.contains(RegExp(r'\d,\d')));
+  }
+
+  static final _decimalMark = RegExp(r'\d[.,]\d');
+
+  final bool decimal;
+
+  /// Keep a decimal comma ("1,5 kg" halves to "0,75 kg").
+  final bool comma;
+
+  String format(double v) {
+    if (!decimal) return _kitchenFraction(v);
+    final s = v
+        .toStringAsFixed(2)
+        .replaceFirst(RegExp(r'0+$'), '')
+        .replaceFirst(RegExp(r'\.$'), '');
+    return comma ? s.replaceAll('.', ',') : s;
+  }
+}
 
 // Normalise the captured range separator back into display text.
 String _sepText(String sep) => sep.trim().toLowerCase() == 'to' ? ' to ' : '–';
@@ -151,12 +276,17 @@ String? _convert(
   final baseB = b == null ? null : b * unit.metricBase;
   final peak = baseB ?? baseA;
 
-  final (factor, label, fractional) = target == MeasurementSystem.metric
+  var (factor, label, fractional) = target == MeasurementSystem.metric
       ? _metricUnit(unit.kind, peak)
       : _imperialUnit(unit.kind, peak);
+  // "1 cup", "3/4 cup" — only more than one is "cups". Values within 1/16 of a
+  // cup display as 1 once rounded to eighths.
+  if (label == 'cups' && peak / factor < 1.0625) label = 'cup';
 
   String fmt(double base) {
-    final value = base / factor;
+    var value = base / factor;
+    // Nobody weighs out "8 7/8 oz": past a few ounces, the nearest half will do.
+    if (label == 'oz' && value >= 3) value = (value * 2).round() / 2;
     return fractional ? _fraction(value) : _metricNumber(value);
   }
 
@@ -185,7 +315,9 @@ double _convertTemp(double value, bool fromMetric) =>
     if (peakBase >= 11.0) return (14.7868, 'tbsp', true); // ≥ ¾ tbsp
     return (4.92892, 'tsp', true);
   }
-  if (peakBase >= 340.0) return (453.592, 'lb', true); // ≥ ~¾ lb
+  // Pounds from the point the amount rounds to 1 lb; below that, a 400 g can
+  // reads as "14 oz" rather than "7/8 lb".
+  if (peakBase >= 430.0) return (453.592, 'lb', true);
   return (28.3495, 'oz', true);
 }
 
@@ -198,7 +330,19 @@ const _vulgar = {
 };
 
 double? _parseAmount(String raw) {
-  final s = raw.trim();
+  // Fold the mixed-number spellings [_amount] accepts into "1 1/2" or "1½".
+  final s = raw
+      .trim()
+      .replaceAll('⁄', '/')
+      .replaceAll(RegExp(r'\s+and\s+'), ' ')
+      .replaceFirstMapped(
+        RegExp(r'^(\d+)\s*-\s*(\d+\s*/)'),
+        (m) => '${m[1]} ${m[2]}',
+      )
+      .replaceFirstMapped(
+        RegExp('^(\\d+)\\s+([$_vulgarChars])\$'),
+        (m) => '${m[1]}${m[2]}',
+      );
   if (s.isEmpty) return null;
   if (s.length == 1 && _vulgar.containsKey(s)) return _vulgar[s];
 
@@ -267,4 +411,35 @@ String _fraction(double v) {
 String _round(double v, int decimals) {
   final s = v.toStringAsFixed(decimals);
   return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
+}
+
+/// Like [_fraction], but also reaches for thirds and sixths, which scaling
+/// produces all the time (⅓ cup doubled is ⅔, not ⅝). Picks the simplest
+/// fraction that is close enough, so halves and quarters stay halves and
+/// quarters. A tiny non-zero amount never rounds away to "0".
+String _kitchenFraction(double v) {
+  if (v <= 0) return '0';
+  var whole = v.floor();
+  final frac = v - whole;
+  var bestNum = 0;
+  var bestDen = 1;
+  var bestErr = double.infinity;
+  for (final den in const [1, 2, 3, 4, 6, 8]) {
+    final num = (frac * den).round();
+    final err = (frac - num / den).abs();
+    if (err < bestErr) {
+      bestNum = num;
+      bestDen = den;
+      bestErr = err;
+    }
+    if (bestErr < 0.02) break;
+  }
+  if (bestNum == bestDen) {
+    whole += 1;
+    bestNum = 0;
+  }
+  if (bestNum == 0) return whole == 0 ? '1/16' : '$whole';
+  final g = bestNum.gcd(bestDen);
+  final f = '${bestNum ~/ g}/${bestDen ~/ g}';
+  return whole == 0 ? f : '$whole $f';
 }

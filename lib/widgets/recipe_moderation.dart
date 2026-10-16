@@ -5,6 +5,7 @@ import '../l10n/gen/app_localizations.dart';
 import '../models/recipe.dart';
 import '../providers/providers.dart';
 import '../services/moderation_repository.dart';
+import 'feedback.dart';
 
 /// Localized label for a report reason, shown in the report dialog.
 String reportReasonLabel(AppLocalizations l10n, ReportReason reason) {
@@ -79,18 +80,15 @@ Future<void> blockRecipe(
   final repo = ref.read(moderationRepositoryProvider);
   try {
     await repo.blockRecipe(uid, recipe.id);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(l10n.moderationHidRecipe(recipe.title)),
-        action: SnackBarAction(
-          label: l10n.actionUndo,
-          onPressed: () => repo.unblockRecipe(uid, recipe.id),
-        ),
-      ),
+    showUndoSnackBar(
+      messenger,
+      message: l10n.moderationHidRecipe(recipe.title),
+      onUndo: () => repo.unblockRecipe(uid, recipe.id),
     );
   } catch (e) {
-    messenger
-        .showSnackBar(SnackBar(content: Text(l10n.couldNotBlock(e.toString()))));
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.couldNotBlock(friendlyError(l10n, e)))),
+    );
   }
 }
 
@@ -122,7 +120,7 @@ Future<void> reportRecipe(
     );
   } catch (e) {
     messenger.showSnackBar(
-        SnackBar(content: Text(l10n.couldNotReport(e.toString()))));
+        SnackBar(content: Text(l10n.couldNotReport(friendlyError(l10n, e)))));
   }
 }
 

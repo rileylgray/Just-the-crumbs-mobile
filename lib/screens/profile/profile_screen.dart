@@ -9,6 +9,7 @@ import '../../providers/providers.dart';
 import '../../services/auth_service.dart';
 import '../../services/consent_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/feedback.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -107,7 +108,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return error.toString();
   }
 
+  /// Asks first, and says where the recipes went: signing out drops back to a
+  /// fresh guest session whose list is empty, which otherwise looks like the
+  /// recipes were lost.
   Future<void> _signOut() async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.signOutTitle),
+        content: Text(l10n.signOutBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.actionCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.profileSignOut),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     setState(() => _busy = true);
     try {
       await ref.read(authServiceProvider).signOut();
@@ -156,7 +179,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text(l10n.profileDeleteFailed(e.toString()))),
+        SnackBar(
+          content: Text(l10n.profileDeleteFailed(friendlyError(l10n, e))),
+        ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -221,7 +246,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text(l10n.errorWithMessage(e.toString()))),
+        SnackBar(content: Text(friendlyError(l10n, e))),
       );
     } finally {
       if (mounted) setState(() => _busy = false);

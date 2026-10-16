@@ -155,6 +155,21 @@ class RecipeRepository {
 
   Future<void> deleteRecipe(String id) => _recipes.doc(id).delete();
 
+  /// Puts a just-deleted [recipe] back, for "Undo". It returns under its old
+  /// id, so its comments and likes — subcollections, which deleting the recipe
+  /// doc leaves in place — and any share link pointing at it come back too.
+  Future<void> restoreRecipe(Recipe recipe) {
+    return _recipes.doc(recipe.id).set({
+      ...recipe.toMap(),
+      'likeCount': recipe.likeCount,
+      'shareCode': ?recipe.shareCode,
+      'createdAt': recipe.createdAt == null
+          ? FieldValue.serverTimestamp()
+          : Timestamp.fromDate(recipe.createdAt!),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   // ---- Likes ----------------------------------------------------------------
 
   DocumentReference<Map<String, dynamic>> _likeDoc(String recipeId, String uid) =>

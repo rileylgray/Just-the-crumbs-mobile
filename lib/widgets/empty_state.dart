@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/gen/app_localizations.dart';
+
 import '../theme/app_theme.dart';
+import 'feedback.dart';
 
 /// A friendly placeholder for an empty list or a missing item: a soft badge
 /// (an [emoji] or an [icon]), a [title], an optional [message], and an
@@ -92,6 +95,32 @@ class EmptyState extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// An [EmptyState] for something that failed to load: a readable message in
+/// place of the raw exception, and — given [onRetry] — a way to try again
+/// rather than a dead end.
+class ErrorState extends StatelessWidget {
+  const ErrorState({super.key, required this.error, this.onRetry});
+
+  final Object error;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return EmptyState(
+      icon: Icons.error_outline,
+      title: friendlyError(l10n, error),
+      action: onRetry == null
+          ? null
+          : OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: Text(l10n.actionRetry),
+            ),
     );
   }
 }
