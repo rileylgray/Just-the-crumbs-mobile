@@ -59,6 +59,25 @@ class AiConfig {
   static const int maxInputChars = 4000;
 }
 
+/// Firebase App Check: proves a Gemini request came from this app on a genuine
+/// device (Play Integrity on Android, App Attest on iOS). Firebase AI Logic
+/// enforces it for every request from 2 November 2026 — and it can't be turned
+/// off — so without it the AI import fallback is refused.
+class AppCheckConfig {
+  const AppCheckConfig._();
+
+  static const String _debugToken = String.fromEnvironment(
+    'APP_CHECK_DEBUG_TOKEN',
+  );
+
+  /// Debug token for debug builds, which can't pass device attestation
+  /// (emulators, simulators, `flutter run`). Create one in the console (App
+  /// Check → Apps → ⋮ → Manage debug tokens) and pass it with
+  /// `--dart-define=APP_CHECK_DEBUG_TOKEN=...`. When unset, the native SDK
+  /// generates a token and logs it on first launch; register that one instead.
+  static String? get debugToken => _debugToken.isEmpty ? null : _debugToken;
+}
+
 /// AdMob ad unit IDs.
 ///
 /// Defaults are Google's official **test** unit IDs, so ads render immediately

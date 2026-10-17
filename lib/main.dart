@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'config.dart';
 import 'firebase_options.dart';
 import 'l10n/gen/app_localizations.dart';
 import 'providers/locale_provider.dart';
@@ -19,6 +22,9 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Before anything can reach Gemini: Firebase AI Logic refuses requests that
+  // don't carry an App Check token. See AppCheckConfig.
+  await _activateAppCheck();
   // Keep recipes readable offline: Firestore caches every document it syncs, so
   // "My Recipes" (and any recipe already opened) stays viewable with no network.
   // Persistence is on by default on mobile; we set it explicitly — with an
@@ -42,6 +48,27 @@ Future<void> main() async {
       child: const CrumbsApp(),
     ),
   );
+}
+
+/// Starts App Check, which the AI import fallback needs. Release builds attest
+/// with Play Integrity / App Attest (DeviceCheck where App Attest is
+/// unsupported); debug builds can't pass those, so they use the debug provider
+/// with a token registered in the console.
+Future<void> _activateAppCheck() async {
+  try {
+    await FirebaseAppCheck.instance.activate(
+      providerAndroid: kDebugMode
+          ? AndroidDebugProvider(debugToken: AppCheckConfig.debugToken)
+          : const AndroidPlayIntegrityProvider(),
+      providerApple: kDebugMode
+          ? AppleDebugProvider(debugToken: AppCheckConfig.debugToken)
+          : const AppleAppAttestWithDeviceCheckFallbackProvider(),
+    );
+  } catch (error) {
+    // Only the AI fallback depends on App Check, and it already degrades to the
+    // heuristic parse when a request is refused — not worth failing launch.
+    debugPrint('App Check activation failed: $error');
+  }
 }
 
 class CrumbsApp extends ConsumerStatefulWidget {

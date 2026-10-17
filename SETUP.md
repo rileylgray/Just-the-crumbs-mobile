@@ -75,9 +75,10 @@ To turn it on:
 1. Console → **AI Logic** → **Get started**, and choose the **Gemini Developer
    API** (this is the one with a free tier). This enables the required API for
    the project.
-2. Set up **App Check** so the client can call the API without shipping a raw
-   key: Console → **App Check** → register the Android app (Play Integrity) and
-   iOS app (App Attest / DeviceCheck). In debug, register a debug token.
+2. Set up **App Check** — see [App Check](#app-check-required-for-ai-import)
+   below. This is required: Firebase enforces App Check for every AI Logic
+   request from **2 November 2026** (and it can't be turned off), so without it
+   the AI assist stops working.
 3. That's it — the app already picks a free-tier-friendly model
    (`gemini-2.5-flash-lite`). Verify the current free-tier rate/daily limits at
    <https://ai.google.dev/pricing> before you ship.
@@ -94,6 +95,73 @@ flutter run --dart-define=AI_IMPORT_MODEL=gemini-2.5-flash # e.g. after upgradin
 > users). Because the model is fallback-only, cached by input, and capped in
 > input size, call volume stays low. Moving to the paid tier both raises the
 > quota and stops the data being used for training.
+
+### App Check (required for AI import)
+
+App Check proves a Gemini request came from this app on a real device, so
+nobody can lift the Firebase config and spend the project's quota. The app
+activates it at launch (`lib/main.dart`) and asks for limited-use tokens on
+each AI request. Release builds use **Play Integrity** (Android) and
+**App Attest**, falling back to DeviceCheck (iOS); debug builds use the
+**debug provider**. Requests without a valid token are refused, and the import
+quietly keeps its rule-based result, so nothing crashes; the AI assist just
+doesn't run.
+
+**Android (Play Integrity)**
+
+1. Play Console → your app → **Test and release → App integrity** → Play
+   Integrity API → **Link a Cloud project** → pick the Firebase project
+   (`just-the-crumbs-app`).
+2. On the same page, under **App signing**, copy the **SHA-256** of the *app
+   signing key* (the key Google signs Play builds with, not your upload key).
+3. Firebase console → **App Check → Apps** → the Android app → **Play
+   Integrity** → paste the SHA-256 → Save. (Also add it under Project settings
+   → your Android app → SHA fingerprints, if it isn't there yet.)
+
+Play Integrity only passes for builds installed from Google Play, internal
+testing track included. A release APK you sideload with `flutter run
+--release` will be refused, so test the AI assist on a debug build or a Play
+test track.
+
+**iOS (App Attest + DeviceCheck)**
+
+1. Firebase console → **App Check → Apps** → the iOS app → **App Attest** →
+   enter your Apple **Team ID** → Save.
+2. Recommended, for devices without App Attest: Apple Developer → **Keys** →
+   create a key with **DeviceCheck** enabled, download the `.p8`, then App
+   Check → the iOS app → **DeviceCheck** → upload it with its Key ID → Save.
+3. The App Attest entitlement is already in `ios/Runner/Runner.entitlements`.
+   In Xcode, open Runner → **Signing & Capabilities** and check that **App
+   Attest** is listed; automatic signing adds it to the App ID on the next
+   build.
+
+**Debug builds (emulator, simulator, `flutter run`)**
+
+Debug builds can't pass device attestation, so register a debug token:
+
+1. App Check → **Apps** → ⋮ on the app → **Manage debug tokens** → **Add debug
+   token** → Generate → copy it.
+2. Run with it:
+   ```bash
+   flutter run --dart-define=APP_CHECK_DEBUG_TOKEN=<token>
+   ```
+
+Without the define, the native SDK makes up a token on first launch and logs
+it (logcat: `Enter this debug secret into the allow list…`; Xcode console:
+`Firebase App Check debug token: …`). Register that one instead. Never ship a
+debug token in a release build.
+
+**Before 2 November 2026**
+
+- Ship an app update that includes App Check, and leave time for store review
+  and rollout. Versions already on people's phones don't send tokens, so from
+  2 November their AI assist stops; imports still work, just without it.
+- Watch Console → **App Check → APIs → Firebase AI Logic**: once most requests
+  show as *verified*, the update has reached your users. You can press
+  **Enforce** early; otherwise Firebase enforces it on 2 November.
+- Enforcing App Check for Firestore or Auth is a separate, optional choice.
+  The app already sends tokens to them, but leave them unenforced until their
+  metrics show nearly all traffic verified.
 
 ## 6. Run
 

@@ -43,7 +43,7 @@ rewrite of the original Rails app; it does not connect to any backend of its own
 
 Flutter · Riverpod · go_router · Firebase Auth (Anonymous + Google) ·
 Cloud Firestore · `http`/`html` for import · `firebase_ai` (Gemini import
-fallback) · `share_plus` · `app_links` · `google_mobile_ads` (AdMob) ·
+fallback, protected by `firebase_app_check`) · `share_plus` · `app_links` · `google_mobile_ads` (AdMob) ·
 `flutter_localizations` + ARB/`gen-l10n` (i18n) · `shared_preferences`
 (persisted language choice).
 

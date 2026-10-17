@@ -59,8 +59,8 @@ class GeminiRecipeParser {
   /// already come up short on heuristics, so losing the call means the recipe
   /// degrades to "watch the video" — worth a second attempt when the first
   /// throws. A cold start is where this bites: the request races app launch,
-  /// with the Firebase auth token the SDK attaches, DNS and TLS all still
-  /// settling. A model that simply had nothing to say is not retried.
+  /// with the Firebase auth and App Check tokens the SDK attaches, DNS and TLS
+  /// all still settling. A model that simply had nothing to say is not retried.
   static const int _maxAttempts = 2;
   static const Duration _retryDelay = Duration(milliseconds: 600);
 
@@ -102,7 +102,13 @@ class GeminiRecipeParser {
   /// One request to the model. Returns `null` when the model answered with
   /// nothing usable; throws when the request itself failed.
   Future<AiParsedRecipe?> _generate(String key) async {
-    final model = FirebaseAI.googleAI().generativeModel(
+    // The SDK attaches the App Check token activated in main(). Limited-use
+    // tokens are single-use, which is what AI Logic will require once it turns
+    // on replay protection; at fallback-only volume the extra attestation per
+    // request is cheap.
+    final model = FirebaseAI.googleAI(
+      useLimitedUseAppCheckTokens: true,
+    ).generativeModel(
       model: AiConfig.model,
       systemInstruction: Content.system(_systemPrompt),
       generationConfig: GenerationConfig(
