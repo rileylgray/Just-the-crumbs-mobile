@@ -397,6 +397,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Nous n\'avons trouvé aucune recette sur cette page. Essayez un autre lien.';
 
   @override
+  String get importBlockedError =>
+      'Ce site empêche les applications de lire ses pages, cette recette ne peut donc pas être importée. Vous pouvez toujours l\'ajouter vous-même.';
+
+  @override
   String get clipboardNoLink => 'Aucun lien dans le presse-papiers';
 
   @override

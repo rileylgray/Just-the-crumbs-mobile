@@ -133,6 +133,7 @@
   "importOfflineError": "Estás sin conexión. Conéctate a internet para importar una receta desde un enlace.",
   "importNetworkError": "No se pudo acceder a esa página. Comprueba tu conexión e inténtalo de nuevo.",
   "importReadError": "No encontramos ninguna receta en esa página. Prueba con otro enlace.",
+  "importBlockedError": "Este sitio no permite que las apps lean sus páginas, así que no se puede importar esta receta. Aún puedes añadirla a mano.",
   "clipboardNoLink": "No hay ningún enlace en el portapapeles",
   "offlineBannerEditing": "Sin conexión: tus cambios se guardan en este dispositivo y se sincronizan cuando vuelvas a conectarte.",
 

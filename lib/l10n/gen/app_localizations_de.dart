@@ -396,6 +396,10 @@ class AppLocalizationsDe extends AppLocalizations {
       'Auf dieser Seite konnte kein Rezept gefunden werden. Versuche einen anderen Link.';
 
   @override
+  String get importBlockedError =>
+      'Diese Website lässt keine Apps ihre Seiten lesen, daher kann dieses Rezept nicht importiert werden. Du kannst es aber manuell hinzufügen.';
+
+  @override
   String get clipboardNoLink => 'In der Zwischenablage ist kein Link';
 
   @override

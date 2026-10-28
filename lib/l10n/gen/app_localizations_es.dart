@@ -394,6 +394,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'No encontramos ninguna receta en esa página. Prueba con otro enlace.';
 
   @override
+  String get importBlockedError =>
+      'Este sitio no permite que las apps lean sus páginas, así que no se puede importar esta receta. Aún puedes añadirla a mano.';
+
+  @override
   String get clipboardNoLink => 'No hay ningún enlace en el portapapeles';
 
   @override

@@ -163,5 +163,19 @@ void main() {
         throwsA(isA<String>()),
       );
     });
+
+    test('reports a bot check as blocked, not as a page without a recipe',
+        () async {
+      final client = MockClient((request) async => http.Response(
+            '<html><head><title>Just a moment...</title></head></html>',
+            403,
+            headers: {'cf-mitigated': 'challenge'},
+          ));
+      expect(
+        () => RecipeImportService('https://example.com/blondies',
+            client: client).call(),
+        throwsA(isA<ImportBlockedException>()),
+      );
+    });
   });
 }

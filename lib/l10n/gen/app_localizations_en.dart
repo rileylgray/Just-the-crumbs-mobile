@@ -391,6 +391,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'We couldn\'t find a recipe on that page. Try a different link.';
 
   @override
+  String get importBlockedError =>
+      'This site blocks apps from reading its pages, so this recipe can\'t be imported. You can still add it yourself.';
+
+  @override
   String get clipboardNoLink => 'There\'s no link on the clipboard';
 
   @override

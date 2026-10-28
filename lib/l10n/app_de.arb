@@ -133,6 +133,7 @@
   "importOfflineError": "Du bist offline. Stelle eine Internetverbindung her, um ein Rezept über einen Link zu importieren.",
   "importNetworkError": "Die Seite konnte nicht erreicht werden. Überprüfe deine Verbindung und versuche es erneut.",
   "importReadError": "Auf dieser Seite konnte kein Rezept gefunden werden. Versuche einen anderen Link.",
+  "importBlockedError": "Diese Website lässt keine Apps ihre Seiten lesen, daher kann dieses Rezept nicht importiert werden. Du kannst es aber manuell hinzufügen.",
   "clipboardNoLink": "In der Zwischenablage ist kein Link",
   "offlineBannerEditing": "Offline – deine Änderungen werden auf diesem Gerät gespeichert und synchronisiert, sobald du wieder online bist.",
 

@@ -808,6 +808,12 @@ abstract class AppLocalizations {
   /// **'We couldn\'t find a recipe on that page. Try a different link.'**
   String get importReadError;
 
+  /// No description provided for @importBlockedError.
+  ///
+  /// In en, this message translates to:
+  /// **'This site blocks apps from reading its pages, so this recipe can\'t be imported. You can still add it yourself.'**
+  String get importBlockedError;
+
   /// No description provided for @clipboardNoLink.
   ///
   /// In en, this message translates to:

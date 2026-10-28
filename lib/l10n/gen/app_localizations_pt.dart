@@ -394,6 +394,10 @@ class AppLocalizationsPt extends AppLocalizations {
       'Não encontramos uma receita nessa página. Tente outro link.';
 
   @override
+  String get importBlockedError =>
+      'Este site não permite que apps leiam suas páginas, então não é possível importar esta receita. Você ainda pode adicioná-la manualmente.';
+
+  @override
   String get clipboardNoLink => 'Não há nenhum link na área de transferência';
 
   @override

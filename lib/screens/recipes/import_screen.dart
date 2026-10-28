@@ -122,8 +122,9 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   }
 
   /// Maps a raw import failure to a friendly, localized message. Network/timeout
-  /// problems get a "check your connection" message; anything else means we
-  /// reached the page but couldn't find a recipe on it.
+  /// problems get a "check your connection" message, and a site that turned the
+  /// app away with a bot check says so; anything else means we reached the page
+  /// but couldn't find a recipe on it.
   ///
   /// The services wrap a failed fetch in a string rather than rethrowing, so
   /// those are matched on their shared `'Error importing …'` prefix — both
@@ -131,6 +132,7 @@ class _ImportScreenState extends ConsumerState<ImportScreen> {
   /// recipe: …'`. Matching only the former is what made every failed TikTok
   /// fetch report itself as "no recipe on that page".
   String _friendlyError(AppLocalizations l10n, Object error) {
+    if (error is ImportBlockedException) return l10n.importBlockedError;
     final isNetwork =
         error is TimeoutException ||
         error is SocketException ||

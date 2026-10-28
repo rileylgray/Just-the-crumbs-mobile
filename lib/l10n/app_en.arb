@@ -143,6 +143,7 @@
   "importOfflineError": "You're offline. Connect to the internet to import a recipe from a link.",
   "importNetworkError": "Couldn't reach that page. Check your connection and try again.",
   "importReadError": "We couldn't find a recipe on that page. Try a different link.",
+  "importBlockedError": "This site blocks apps from reading its pages, so this recipe can't be imported. You can still add it yourself.",
   "clipboardNoLink": "There's no link on the clipboard",
   "offlineBannerEditing": "You're offline — your changes save on this device and sync when you reconnect.",
 

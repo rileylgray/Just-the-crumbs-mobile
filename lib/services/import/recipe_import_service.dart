@@ -43,6 +43,15 @@ class ImportedRecipe {
       [for (final g in ingredientGroups) ...g.items];
 }
 
+/// Thrown when the site refused to serve the page to the app (most often a
+/// Cloudflare bot check), so it isn't reported as a page with no recipe on it.
+class ImportBlockedException implements Exception {
+  const ImportBlockedException();
+
+  @override
+  String toString() => 'The site blocked the import request';
+}
+
 /// Dart port of the Rails `RecipeImportService`. Fetches a recipe page and
 /// extracts title/ingredients/steps, preferring Schema.org JSON-LD and falling
 /// back through the same heuristic ladder as the original scraper. Runs fully
@@ -76,6 +85,8 @@ class RecipeImportService {
       throw 'Error importing recipe: $e';
     }
 
+    if (_isBlocked(response)) throw const ImportBlockedException();
+
     _doc = html_parser.parse(response.body);
 
     // Extract BEFORE stripping scripts (Schema.org lives in <script>).
@@ -95,6 +106,12 @@ class RecipeImportService {
   }
 
   bool get _isTikTok => RegExp(r'tiktok\.com', caseSensitive: false).hasMatch(url);
+
+  /// The site answered with a bot check or a refusal instead of the page.
+  /// Cloudflare marks its "Just a moment…" challenge with `cf-mitigated`.
+  bool _isBlocked(http.Response response) =>
+      response.headers['cf-mitigated'] == 'challenge' ||
+      response.statusCode == 403;
 
   // ---- Title ---------------------------------------------------------------
 
